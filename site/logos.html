@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Second Thought — pick a mark</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --ease: cubic-bezier(0.16, 1, 0.3, 1); }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #fff; color: #000; letter-spacing: -0.02em; }
+    header { padding: 28px 6vw 8px; }
+    h1 { font-size: 32px; letter-spacing: -0.05em; margin: 0 0 8px; }
+    p { color: #525252; max-width: 46ch; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: rgba(0,0,0,.1); border-top: 1px solid rgba(0,0,0,.1); margin-top: 32px; }
+    button.card {
+      background: #fff; border: 0; padding: 36px 20px 24px; text-align: center; cursor: pointer;
+      font-family: inherit;
+    }
+    button.card:hover { background: #f5f5f5; }
+    button.card[data-on="1"] { outline: 2px solid #000; outline-offset: -2px; }
+    svg { width: 88px; height: 88px; display: block; margin: 0 auto 16px; }
+    .n { font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #525252; }
+    h2 { font-size: 16px; margin: 6px 0 4px; letter-spacing: -0.04em; }
+    .why { font-size: 13px; color: #525252; min-height: 3.2em; }
+    #picked { padding: 20px 6vw 48px; font-weight: 700; }
+    .ring { fill: none; stroke: #000; stroke-width: 2; stroke-dasharray: 200; animation: draw 1.4s var(--ease) forwards; }
+    .ink { fill: none; stroke: #000; stroke-linecap: square; stroke-linejoin: miter; }
+    @keyframes draw { from { stroke-dashoffset: 200; } to { stroke-dashoffset: 0; } }
+    @keyframes pulse { 50% { opacity: .35; } }
+    @keyframes blink { 0%,40% { opacity: 1; } 50%,100% { opacity: 0; } }
+    @keyframes echo { 0% { opacity: .6; transform: scale(.7); } 100% { opacity: 0; transform: scale(1.25); } }
+    .pause-bar { fill: #000; animation: pulse 1.6s var(--ease) infinite; }
+    .caret { fill: #000; animation: blink 1.2s steps(1) infinite; }
+    .echo { fill: none; stroke: #000; stroke-width: 1.5; transform-origin: 32px 28px; animation: echo 2s var(--ease) infinite; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Pick a mark</h1>
+    <p>Har mark “Second Thought” se juda hai: pause before send, doosri nazar, refined prompt. Number bhejo — tabhi main site pe lagaunga.</p>
+  </header>
+  <div class="grid">
+    <button class="card" data-id="1" type="button">
+      <svg viewBox="0 0 64 64">
+        <rect class="pause-bar" x="18" y="18" width="8" height="28" />
+        <rect class="pause-bar" x="30" y="18" width="8" height="28" style="animation-delay:.15s" />
+        <path d="M44 24l12 8-12 8Z" fill="#000" />
+      </svg>
+      <div class="n">01</div>
+      <h2>Pause → Send</h2>
+      <p class="why">Hold bars, then the send caret. Product in one glyph.</p>
+    </button>
+    <button class="card" data-id="2" type="button">
+      <svg viewBox="0 0 64 64">
+        <text x="8" y="46" font-family="Inter" font-weight="700" font-size="42" letter-spacing="-3">2</text>
+        <text x="32" y="28" font-family="Inter" font-weight="700" font-size="14">ND</text>
+        <line x1="32" y1="34" x2="56" y2="34" stroke="#000" stroke-width="2" />
+      </svg>
+      <div class="n">02</div>
+      <h2>2nd</h2>
+      <p class="why">Literal second. The thought comes after the first draft.</p>
+    </button>
+    <button class="card" data-id="3" type="button">
+      <svg viewBox="0 0 64 64">
+        <circle class="echo" cx="32" cy="28" r="14" />
+        <circle class="echo" cx="32" cy="28" r="14" style="animation-delay:.4s" />
+        <circle cx="32" cy="28" r="6" fill="#000" />
+        <path d="M26 42h12l-4 10-8-10Z" fill="#000" />
+      </svg>
+      <div class="n">03</div>
+      <h2>Echo thought</h2>
+      <p class="why">A thought that repeats once — the second thought.</p>
+    </button>
+    <button class="card" data-id="4" type="button">
+      <svg viewBox="0 0 64 64">
+        <path class="ink ring" stroke-width="3" d="M16 40c0-12 10-22 22-22 8 0 14 5 14 12 0 10-12 12-12 20" />
+        <circle cx="38" cy="54" r="3" fill="#000" />
+      </svg>
+      <div class="n">04</div>
+      <h2>Question, held</h2>
+      <p class="why">A ? that never rushes — we ask before send.</p>
+    </button>
+    <button class="card" data-id="5" type="button">
+      <svg viewBox="0 0 64 64">
+        <rect x="10" y="18" width="44" height="22" rx="2" fill="none" stroke="#000" stroke-width="2" />
+        <rect class="caret" x="16" y="24" width="2" height="10" />
+        <text x="22" y="34" font-family="Inter" font-size="9" font-weight="700">SEND</text>
+        <rect x="28" y="46" width="4" height="10" fill="#000" />
+        <rect x="34" y="46" width="4" height="10" fill="#000" />
+      </svg>
+      <div class="n">05</div>
+      <h2>Composer + pause</h2>
+      <p class="why">The chat box, stopped at Send. That’s the extension.</p>
+    </button>
+    <button class="card" data-id="6" type="button">
+      <svg viewBox="0 0 64 64">
+        <text x="6" y="44" font-family="Inter" font-weight="700" font-size="36" letter-spacing="-2">ST</text>
+        <path d="M48 16v20M48 44v2" stroke="#000" stroke-width="3" stroke-linecap="square" />
+      </svg>
+      <div class="n">06</div>
+      <h2>ST ;</h2>
+      <p class="why">Initials plus a semicolon — a pause in the sentence.</p>
+    </button>
+  </div>
+  <p id="picked">Selected: none — reply with 1–6</p>
+  <script>
+    document.querySelectorAll(".card").forEach((b) => {
+      b.addEventListener("click", () => {
+        document.querySelectorAll(".card").forEach((x) => x.dataset.on = "0");
+        b.dataset.on = "1";
+        document.getElementById("picked").textContent = "Selected: " + b.dataset.id + " · " + b.querySelector("h2").textContent + " — isi number se mujhe reply karo";
+      });
+    });
+  </script>
+</body>
+</html>

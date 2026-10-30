@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ST letter marks — pick later</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root { --ease: cubic-bezier(0.16, 1, 0.3, 1); }
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #fff; color: #000; letter-spacing: -0.03em; }
+    header { padding: 28px 6vw 12px; }
+    h1 { font-size: 28px; letter-spacing: -0.05em; margin: 0 0 8px; }
+    p { color: #525252; max-width: 50ch; margin: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1px; background: rgba(0,0,0,.1); margin-top: 28px; border-top: 1px solid rgba(0,0,0,.1); }
+    .card { background: #fff; padding: 32px 16px 20px; text-align: center; }
+    svg { width: 96px; height: 96px; display: block; margin: 0 auto 14px; }
+    .n { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #525252; }
+    h2 { font-size: 14px; margin: 6px 0 0; letter-spacing: -0.04em; }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    @keyframes in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .draw { fill: none; stroke: #000; stroke-linecap: square; stroke-linejoin: miter;
+      stroke-dasharray: 160; stroke-dashoffset: 160; animation: draw 1.2s var(--ease) forwards; }
+    .t { animation: in .7s var(--ease) both; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>10 marks from S + T</h1>
+    <p>Site pe kuch nahi lagega jab tak tum number na bolo. Sirf ST letters — alag construction.</p>
+  </header>
+  <div class="grid">
+    <!-- 1 ligature ST shared stem -->
+    <div class="card">
+      <svg viewBox="0 0 64 64"><path class="draw" stroke-width="4" d="M14 18h24c0 0 10 0 10 8s-6 8-10 8H28v20M20 46h28"/></svg>
+      <div class="n">01</div><h2>Ligature — S spine becomes T bar</h2>
+    </div>
+    <!-- 2 nested ST -->
+    <div class="card">
+      <svg viewBox="0 0 64 64">
+        <text x="6" y="48" font-size="48" font-weight="800" font-family="Inter" letter-spacing="-8">S</text>
+        <text x="28" y="48" font-size="48" font-weight="800" font-family="Inter" fill="none" stroke="#000" stroke-width="1.5">T</text>
+      </svg>
+      <div class="n">02</div><h2>Solid S + outlined T</h2>
+    </div>
+    <!-- 3 stacked -->
+    <div class="card">
+      <svg viewBox="0 0 64 64">
+        <text x="12" y="30" font-size="26" font-weight="800" font-family="Inter">S</text>
+        <text x="12" y="54" font-size="26" font-weight="800" font-family="Inter">T</text>
+        <rect x="32" y="12" width="2" height="40" fill="#000"/>
+      </svg>
+      <div class="n">03</div><h2>Stacked ST + rule</h2>
+    </div>
+    <!-- 4 T as cross on S -->
+    <div class="card">
+      <svg viewBox="0 0 64 64">
+        <text x="10" y="50" font-size="52" font-weight="800" font-family="Inter">S</text>
+        <path class="draw" stroke-width="3" d="M18 20h36M36 20v32"/>
+      </svg>
+      <div class="n">04</div><h2>T drawn over S</h2>
+    </div>
+    <!-- 5 negative T in S -->
+    <div class="card">
+      <svg viewBox="0 0 64 64">
+        <rect width="64" height="64" fill="#000"/>
+        <text x="8" y="50" font-size="52" font-weight="800" font-family="Inter" fill="#fff">S</text>
+        <path d="M22 16h28M36 16v36" stroke="#fff" stroke-width="3"/>
+      </svg>
+      <div class="n">05</div><h2>White ST on black tile</h2>
+    </div>
+    <!-- 6 monoline ST one stroke -->
+    <div class="card">
+      <svg viewBox="0 0 64 64">
+        <path class="draw" stroke-width="3" d="M48 16H28c-8 0-12 5-12 10s5 9 12 9h8c7 0 12 4 12 10s-5 11-14 11H16M16 56h36"/>
+      </svg>
+      <div class="n">06</div><h2>One-stroke S ending as T</h2>
+    </div>
+    <!-- 7 ST as postage -->
+    <div class="card">
+      <svg viewBox="0 0 64 64">
+        <rect x="8" y="8" width="48" height="48" fill="none" stroke="#000" stroke-width="2" stroke-dasharray="4 3"/>
+        <text x="12" y="46" font-size="32" font-weight="800" font-family="Inter" class="t">ST</text>
+      </svg>
+      <div class="n">07</div><h2>ST stamp</h2>
+    </div>
+    <!-- 8 heavy S light T -->
+    <div class="card">
+      <svg viewBox="0 0 64 64">
+        <text x="4" y="50" font-size="56" font-weight="800" font-family="Inter">S</text>
+        <text x="34" y="50" font-size="56" font-weight="400" font-family="Inter">T</text>
+      </svg>
+      <div class="n">08</div><h2>Heavy S / light T</h2>
+    </div>
+    <!-- 9 T serif cutting S -->
+    <div class="card">
+      <svg viewBox="0 0 64 64">
+        <text x="4" y="50" font-size="50" font-weight="800" font-family="Inter">S</text>
+        <rect x="28" y="14" width="28" height="6" fill="#000"/>
+        <rect x="40" y="14" width="5" height="38" fill="#000"/>
+      </svg>
+      <div class="n">09</div><h2>Block T locking S</h2>
+    </div>
+    <!-- 10 mirrored ST -->
+    <div class="card">
+      <svg viewBox="0 0 64 64">
+        <text x="8" y="44" font-size="28" font-weight="800" font-family="Inter">ST</text>
+        <text x="8" y="58" font-size="28" font-weight="800" font-family="Inter" opacity=".25" transform="scale(1,-1) translate(0,-90)">ST</text>
+        <line x1="8" y1="46" x2="56" y2="46" stroke="#000" stroke-width="1"/>
+      </svg>
+      <div class="n">10</div><h2>ST reflection (second)</h2>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Second Thought — Settings</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f2f0e9; color: #16211c; min-height: 100vh;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 28px 20px 60px; }
+    header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .logo { width: 26px; height: 26px; border-radius: 8px; background: #c2410c; position: relative; }
+    .logo::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: #fbfaf7; }
+    h1 { font-size: 20px; font-weight: 750; letter-spacing: -0.01em; }
+    .tagline { font-size: 13px; color: #5c665e; margin-bottom: 24px; }
+    section {
+      background: #fbfaf7; border: 1px solid #e0dccd; border-radius: 14px;
+      padding: 18px 20px; margin-bottom: 16px;
+    }
+    section h2 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #1d2a22; }
+    section h2 .n { color: #c2410c; margin-right: 6px; font-variant-numeric: tabular-nums; }
+    .row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; gap: 16px; }
+    .row + .row { border-top: 1px solid #efece2; }
+    .lbl { font-size: 13.5px; font-weight: 600; }
+    .sub { font-size: 12px; color: #7a837b; margin-top: 2px; line-height: 1.4; max-width: 420px; }
+    .switch { position: relative; width: 36px; height: 21px; flex: none; }
+    .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; z-index: 1; }
+    .switch .track { position: absolute; inset: 0; background: #cfcaba; border-radius: 11px; transition: background 140ms; }
+    .switch .knob { position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; background: #fff; border-radius: 50%; transition: left 140ms; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+    .switch input:checked + .track { background: #c2410c; }
+    .switch input:checked + .track .knob { left: 17px; }
+    select, input[type="text"], input[type="password"], textarea {
+      font-family: inherit; font-size: 13px; color: #16211c;
+      border: 1px solid #d8d4c8; border-radius: 9px; padding: 8px 10px; background: #fff;
+    }
+    select:focus, input:focus, textarea:focus { outline: 2px solid #c2410c33; border-color: #c2410c; }
+    .field { margin: 10px 0; }
+    .field label { display: block; font-size: 12px; font-weight: 650; color: #4c564e; margin-bottom: 5px; }
+    .field .wide { width: 100%; }
+    .inline { display: flex; gap: 8px; align-items: center; }
+    button.btn {
+      font-family: inherit; font-size: 13px; font-weight: 650; cursor: pointer;
+      border-radius: 9px; padding: 8px 14px; border: 1px solid #1d2a22;
+      background: #1d2a22; color: #fbfaf7;
+    }
+    button.btn:hover { background: #2c3f33; }
+    button.btn.secondary { background: transparent; color: #1d2a22; border-color: #cfcaba; }
+    button.btn.secondary:hover { background: #ece9de; }
+    button.btn:disabled { opacity: 0.5; cursor: default; }
+    .status { font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+    .status.ok { color: #1d5e2a; }
+    .status.err { color: #b3261e; }
+    .hint { font-size: 11.5px; color: #7a837b; line-height: 1.5; margin-top: 10px; }
+    .hint a { color: #c2410c; }
+    .keyrow { display: none; }
+    .keyrow.show { display: block; }
+    .danger { color: #b3261e; }
+    footer { text-align: center; font-size: 11.5px; color: #7a837b; margin-top: 24px; }
+    footer a { color: #4c564e; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo"></div>
+      <h1>Second Thought</h1>
+    </header>
+    <p class="tagline">An intelligent requirement-discovery layer for AI.</p>
+
+    <section>
+      <h2><span class="n">1</span>General</h2>
+      <div class="row">
+        <div><div class="lbl">Enable Second Thought</div><div class="sub">Master switch. When off, nothing is ever intercepted.</div></div>
+        <label class="switch"><input type="checkbox" id="st-enabled" /><span class="track"><span class="knob"></span></span></label>
+      </div>
+      <div class="row">
+        <div><div class="lbl">Automatic interception</div><div class="sub">Pause incomplete requests when you press send. When off you can still refine manually from the toolbar.</div></div>
+        <label class="switch"><input type="checkbox" id="st-intercept" /><span class="track"><span class="knob"></span></span></label>
+      </div>
+      <div class="row">
+        <div><div class="lbl">Questions per refinement</div><div class="sub">Maximum questions asked. 2–3 keeps friction low.</div></div>
+        <select id="st-maxq">
+          <option value="1">1</option><option value="2">2</option>
+          <option value="3" selected>3</option><option value="4">4</option><option value="5">5</option>
+        </select>
+      </div>
+      <div class="row">
+        <div><div class="lbl">Prompt history</div><div class="sub">Keep refined prompts locally on this device. <span class="danger">Off by default.</span></div></div>
+        <label class="switch"><input type="checkbox" id="st-history" /><span class="track"><span class="knob"></span></span></label>
+      </div>
+      <div class="row">
+        <button class="btn secondary" id="btn-clear-history">Clear history</button>
+        <span></span>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="n">2</span>Analysis engine</h2>
+      <div class="row">
+        <div>
+          <div class="lbl">Engine</div>
+          <div class="sub"><b>Local</b> analyzes on-device with the built-in requirement engine — free, offline, no key needed. <b>AI-powered</b> sends the request text to your own AI provider to generate sharper questions.</div>
+        </div>
+        <select id="st-engine">
+          <option value="local">Local (on-device)</option>
+          <option value="ai">AI-powered</option>
+        </select>
+      </div>
+      <div id="ai-config">
+        <div class="field">
+          <label for="st-provider">Provider</label>
+          <select id="st-provider" class="wide"></select>
+        </div>
+        <div class="field">
+          <label for="st-model">Model</label>
+          <input type="text" id="st-model" class="wide" spellcheck="false" />
+        </div>
+        <div class="field keyrow" id="keyrow">
+          <label for="st-apikey">API key</label>
+          <div class="inline">
+            <input type="password" id="st-apikey" class="wide" placeholder="Paste your key…" spellcheck="false" autocomplete="off" />
+            <button class="btn" id="btn-save-key">Save</button>
+          </div>
+          <div class="hint">Stored only in this browser’s local extension storage. Never synced, never logged, sent only to your chosen provider. <a id="key-link" href="#" target="_blank" rel="noreferrer">Get a key ↗</a></div>
+        </div>
+        <div class="inline" style="margin-top:12px">
+          <button class="btn secondary" id="btn-test">Test connection</button>
+          <span class="status" id="test-status"></span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="n">3</span>Sites</h2>
+      <div class="field">
+        <label for="st-excluded">Never run on (one hostname per line)</label>
+        <textarea id="st-excluded" rows="3" spellcheck="false" placeholder="chatgpt.com&#10;internal-corp-chat.example.com"></textarea>
+      </div>
+      <div class="field">
+        <label for="st-custom">Additional AI sites (experimental, generic adapter)</label>
+        <textarea id="st-custom" rows="3" spellcheck="false" placeholder="chat.mistral.ai&#10;localhost"></textarea>
+        <div class="hint">Second Thought will ask for permission to run on these sites. Detection is heuristic; use with judgment. <b>localhost</b> is allowed for testing with the MockChat page.</div>
+        <div class="inline" style="margin-top:10px">
+          <button class="btn secondary" id="btn-apply-custom">Apply sites &amp; grant permission</button>
+          <span class="status" id="custom-status"></span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="n">4</span>Privacy</h2>
+      <div class="sub" style="max-width:none">
+        Second Thought analyzes requests on-device by default. Prompt history and analytics are off by default.
+        In AI-powered mode, the request text is sent by your browser directly to the provider you configured —
+        never to us. There is no Second Thought server involved in refinement. See the privacy documentation for details.
+      </div>
+    </section>
+
+    <footer>Second Thought v0.1.0 · <a href="https://github.com/second-thought/second-thought" target="_blank" rel="noreferrer">Documentation</a></footer>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>

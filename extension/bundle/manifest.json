@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Second Thought",
+  "version": "0.2.0",
+  "description": "An intelligent requirement-discovery layer for AI. Second Thought notices what your request is missing, asks a few sharp questions, and completes the context before your request reaches the AI.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Second Thought"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "js": ["content.js"],
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://copilot.microsoft.com/*"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage", "activeTab"],
+  "optional_permissions": ["scripting"],
+  "optional_host_permissions": ["https://*/*", "http://localhost/*"],
+  "offline_enabled": true
+}

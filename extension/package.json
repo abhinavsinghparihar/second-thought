@@ -1,0 +1,12 @@
+{
+  "name": "@second-thought/extension",
+  "version": "0.1.0",
+  "description": "Second Thought browser extension — an intelligent requirement-discovery layer for AI chat providers.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "package": "node esbuild.config.mjs && cd bundle && zip -rq ../second-thought-extension.zip ."
+  }
+}
