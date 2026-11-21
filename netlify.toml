@@ -1,0 +1,9 @@
+# Netlify serves ONLY the site/ folder. The extension is distributed via GitHub Releases.
+[build]
+  publish = "site"
+  command = "node scripts/inject-site-url.mjs"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Security headers live in site/_headers (Netlify format).

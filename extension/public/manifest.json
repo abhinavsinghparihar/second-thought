@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Second Thought",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An intelligent requirement-discovery layer for AI. Second Thought notices what your request is missing, asks a few sharp questions, and completes the context before your request reaches the AI.",
   "minimum_chrome_version": "116",
   "icons": {
@@ -12,7 +12,13 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Second Thought"
+    "default_title": "Second Thought",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "options_page": "options.html",
   "background": {
@@ -20,7 +26,9 @@
   },
   "content_scripts": [
     {
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "matches": [
         "https://chatgpt.com/*",
         "https://chat.openai.com/*",
@@ -31,8 +39,27 @@
       "run_at": "document_idle"
     }
   ],
-  "permissions": ["storage", "activeTab"],
-  "optional_permissions": ["scripting"],
-  "optional_host_permissions": ["https://*/*", "http://localhost/*"],
+  "permissions": [
+    "storage"
+  ],
+  "optional_permissions": [
+    "scripting",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.groq.com/*",
+    "https://openrouter.ai/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'none'; form-action 'none'"
+  },
   "offline_enabled": true
 }

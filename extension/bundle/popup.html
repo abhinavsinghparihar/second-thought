@@ -2,92 +2,101 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Second Thought</title>
-  <style>
-    :root { color-scheme: light; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: 300px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: #16211c; background: #fbfaf7;
-    }
-    header {
-      display: flex; align-items: center; gap: 8px;
-      padding: 12px 14px; border-bottom: 1px solid #e6e2d6; background: #f4f2ea;
-    }
-    .logo { width: 20px; height: 20px; border-radius: 6px; background: #c2410c; position: relative; flex: none; }
-    .logo::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: #fbfaf7; }
-    h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; }
-    .spacer { flex: 1; }
-    .gear { border: none; background: transparent; cursor: pointer; font-size: 15px; color: #5c665e; width: 26px; height: 26px; border-radius: 7px; }
-    .gear:hover { background: #e6e2d6; }
-    main { padding: 12px 14px; }
-    .card { border: 1px solid #e0dccd; border-radius: 10px; padding: 10px 12px; background: #fff; margin-bottom: 10px; }
-    .card .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #7a837b; font-weight: 650; margin-bottom: 4px; }
-    .card .v { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-    .chip { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.02em; }
-    .chip.supported { background: #e3f2e5; color: #1d5e2a; }
-    .chip.partial { background: #fdf0dd; color: #8a5a12; }
-    .chip.unknown { background: #ece9de; color: #5c665e; }
-    .chip.off { background: #fdeceb; color: #7f1d1d; }
-    .row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; }
-    .row + .row { border-top: 1px solid #efece2; }
-    .row .lbl { font-size: 13px; font-weight: 550; }
-    .row .sub { font-size: 11px; color: #7a837b; margin-top: 1px; }
-    .switch { position: relative; width: 34px; height: 20px; flex: none; }
-    .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; z-index: 1; }
-    .switch .track { position: absolute; inset: 0; background: #cfcaba; border-radius: 10px; transition: background 140ms; }
-    .switch .knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: left 140ms; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
-    .switch input:checked + .track { background: #c2410c; }
-    .switch input:checked + .track .knob { left: 16px; }
-    button.wide {
-      width: 100%; padding: 9px 12px; border-radius: 9px; border: 1px solid #1d2a22;
-      background: #1d2a22; color: #fbfaf7; font-weight: 650; font-size: 13px; cursor: pointer;
-      font-family: inherit; margin-top: 2px;
-    }
-    button.wide:hover { background: #2c3f33; }
-    button.wide:disabled { opacity: 0.5; cursor: default; }
-    .note { font-size: 11px; color: #7a837b; line-height: 1.45; margin-top: 10px; }
-    footer { padding: 10px 14px; border-top: 1px solid #e6e2d6; display: flex; gap: 10px; background: #f4f2ea; }
-    footer a { font-size: 11.5px; color: #4c564e; text-decoration: none; }
-    footer a:hover { color: #c2410c; }
-  </style>
+  <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <header>
-    <div class="logo"></div>
-    <h1>Second Thought</h1>
-    <div class="spacer"></div>
-    <button class="gear" id="open-options" title="Settings" aria-label="Open settings">⚙</button>
-  </header>
-  <main>
-    <div class="card">
-      <div class="k">This site</div>
-      <div class="v"><span id="site-name">Checking…</span><span id="site-chip" class="chip unknown"></span></div>
-    </div>
-    <div class="card">
-      <div class="row">
-        <div>
-          <div class="lbl">Second Thought</div>
-          <div class="sub">Master switch</div>
-        </div>
-        <label class="switch"><input type="checkbox" id="tg-enabled" /><span class="track"><span class="knob"></span></span></label>
+  <div class="shell" id="shell" data-theme="light">
+    <!-- ── header ─────────────────────────────────────────────────────── -->
+    <header class="masthead">
+      <div class="masthead__brand">
+        <span class="masthead__mark" id="brand-mark"></span>
+        <span class="masthead__name">Second Thought</span>
       </div>
-      <div class="row">
-        <div>
-          <div class="lbl">Auto-intercept</div>
-          <div class="sub">Pause incomplete requests before sending</div>
-        </div>
-        <label class="switch"><input type="checkbox" id="tg-intercept" /><span class="track"><span class="knob"></span></span></label>
+      <button class="icon-btn" id="open-options" title="Settings" aria-label="Open settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.2" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </button>
+    </header>
+
+    <!-- ── this site ──────────────────────────────────────────────────── -->
+    <section class="site" aria-labelledby="site-label">
+      <div class="site__head">
+        <span class="st-eyebrow" id="site-label">Current tab</span>
+        <span class="chip" id="site-status">Checking…</span>
       </div>
-    </div>
-    <button class="wide" id="refine-draft">Refine current draft</button>
-    <p class="note" id="note">Complete requests always pass through untouched. Second Thought only pauses when a few details would materially improve the answer.</p>
-  </main>
-  <footer>
-    <a href="https://github.com/second-thought/second-thought" target="_blank" rel="noreferrer">Website & docs</a>
-    <a href="#" id="link-history">History</a>
-  </footer>
+      <div class="site__name" id="site-name">—</div>
+      <p class="site__note" id="site-note"></p>
+    </section>
+
+    <!-- ── primary action ─────────────────────────────────────────────── -->
+    <button class="cta" id="refine-draft">
+      <span class="cta__label">Review current draft</span>
+      <svg class="cta__arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </svg>
+    </button>
+    <p class="cta-note" id="cta-note">Complete requests pass through untouched.</p>
+
+    <hr class="st-rule" />
+
+    <!-- ── engine ────────────────────────────────────────────────────── -->
+    <section class="engine" aria-labelledby="engine-label">
+      <div class="row-head">
+        <span class="st-eyebrow" id="engine-label">Analysis engine</span>
+        <button class="link-btn" id="engine-change">Change</button>
+      </div>
+      <div class="engine__body">
+        <div class="engine__title">
+          <span class="engine__badge" id="engine-badge">Local</span>
+          <span class="engine__name" id="engine-name">On-device requirement engine</span>
+        </div>
+        <p class="engine__reason" id="engine-reason"></p>
+      </div>
+    </section>
+
+    <hr class="st-rule" />
+
+    <!-- ── toggles ───────────────────────────────────────────────────── -->
+    <section class="toggles" aria-labelledby="controls-label">
+      <span class="st-eyebrow st-sr" id="controls-label">Controls</span>
+      <label class="toggle-row">
+        <span class="toggle-row__text">
+          <span class="toggle-row__label">Second Thought</span>
+          <span class="toggle-row__sub">Master switch</span>
+        </span>
+        <span class="switch">
+          <input type="checkbox" id="tg-enabled" />
+          <span class="switch__track"><span class="switch__knob"></span></span>
+        </span>
+      </label>
+      <label class="toggle-row">
+        <span class="toggle-row__text">
+          <span class="toggle-row__label">Pause before sending</span>
+          <span class="toggle-row__sub">Clarify only when it changes the answer</span>
+        </span>
+        <span class="switch">
+          <input type="checkbox" id="tg-intercept" />
+          <span class="switch__track"><span class="switch__knob"></span></span>
+        </span>
+      </label>
+    </section>
+
+    <!-- ── footer ────────────────────────────────────────────────────── -->
+    <footer class="foot">
+      <a class="foot__link" id="link-privacy" href="#" role="button">Privacy</a>
+      <span class="foot__dot">·</span>
+      <a class="foot__link" id="link-history" href="#" role="button">History</a>
+      <span class="st-spacer"></span>
+      <span class="foot__ver" id="foot-ver"></span>
+    </footer>
+
+    <!-- transient message -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -37,68 +37,11 @@ export function q<T extends Element = Element>(selectors: string, root: ParentNo
   return null;
 }
 
-/** Read text from either a contenteditable or a textarea/input. */
-export function readInputText(input: HTMLElement): string {
-  if (input instanceof HTMLTextAreaElement || input instanceof HTMLInputElement) {
-    return input.value;
-  }
-  return (input as HTMLElement).innerText ?? '';
-}
-
-/**
- * Write text into either kind of input, preserving draft semantics.
- *
- * - textarea/input: use the prototype's native value setter so React-style
- *   frameworks notice the change, then dispatch a bubbling input event.
- * - ProseMirror/Quill contenteditables: select-all + execCommand('insertText')
- *   (fires the editor's own input pipeline), with a synthetic paste event as
- *   fallback.
- */
-export function writeInputText(input: HTMLElement, text: string): boolean {
-  try {
-    if (input instanceof HTMLTextAreaElement || input instanceof HTMLInputElement) {
-      input.focus();
-      const proto = input instanceof HTMLTextAreaElement
-        ? HTMLTextAreaElement.prototype
-        : HTMLInputElement.prototype;
-      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-      if (setter) setter.call(input, text);
-      else input.value = text;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      return true;
-    }
-    input.focus();
-    const selection = window.getSelection();
-    if (selection) {
-      const range = document.createRange();
-      range.selectNodeContents(input);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-    const executed = document.execCommand('insertText', false, text);
-    if (!executed) throw new Error('execCommand returned false');
-    return true;
-  } catch {
-    try {
-      const dt = new DataTransfer();
-      dt.setData('text/plain', text);
-      const evt = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-      input.dispatchEvent(evt);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-}
-
-export function isContentEditable(el: Element | null): el is HTMLElement {
-  return el !== null && el instanceof HTMLElement && el.isContentEditable;
-}
-
 /** Visible check — avoids picking up hidden template editors. */
 export function isVisible(el: HTMLElement): boolean {
+  if (!el.isConnected) return false;
   const rect = el.getBoundingClientRect();
   if (rect.width < 40 || rect.height < 12) return false;
   const style = window.getComputedStyle(el);
-  return style.visibility !== 'hidden' && style.display !== 'none';
+  return style.visibility !== 'hidden' && style.display !== 'none' && style.opacity !== '0';
 }

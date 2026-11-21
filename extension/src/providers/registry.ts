@@ -5,7 +5,10 @@ import { createGenericAdapter } from './generic';
 import { geminiAdapter } from './gemini';
 import type { ProviderAdapter } from './types';
 
-/** Built-in adapters, most battle-tested first. */
+/**
+ * Built-in adapters, most-verified first. The order matters: the first match
+ * wins, and `supported` adapters must be tried before heuristic ones.
+ */
 export const BUILTIN_ADAPTERS: ProviderAdapter[] = [
   chatgptAdapter,
   claudeAdapter,
@@ -20,17 +23,19 @@ export interface ProviderDetection {
 }
 
 /**
- * Resolve the adapter for a hostname. Custom (user-added) sites always use
- * the generic heuristic adapter; unknown hostnames yield null and Second
- * Thought stays completely passive.
+ * Resolve the adapter for a hostname. Custom (user-added) sites always use the
+ * generic heuristic adapter; unknown hostnames yield null and Second Thought
+ * stays completely passive.
  */
 export function detectProvider(hostname: string, customSites: string[] = []): ProviderDetection {
+  const host = hostname.toLowerCase();
   for (const adapter of BUILTIN_ADAPTERS) {
-    if (adapter.matches(hostname)) return { adapter, custom: false };
+    if (adapter.matches(host)) return { adapter, custom: false };
   }
   for (const site of customSites) {
-    const clean = site.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    if (hostname === clean || hostname.endsWith(`.${clean}`)) {
+    const clean = site.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    if (clean === '') continue;
+    if (host === clean || host.endsWith(`.${clean}`)) {
       return { adapter: createGenericAdapter('custom', clean), custom: true };
     }
   }
@@ -45,3 +50,8 @@ export const BUILTIN_HOSTS: string[] = [
   'gemini.google.com',
   'copilot.microsoft.com',
 ];
+
+/** Hostname patterns the manifest must declare, for the drift test. */
+export function expectedContentScriptMatches(): string[] {
+  return BUILTIN_HOSTS.map((host) => `https://${host}/*`);
+}

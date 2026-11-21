@@ -1,0 +1,39 @@
+/* demo scaffolding only */
+html, body { background: #fafafa; margin: 0; }
+.demo-wrap { max-width: 760px; margin: 0 auto; padding: 28px 24px 340px; font-family: Inter, system-ui, sans-serif; color: #000; letter-spacing: -0.02em; }
+.demo-head { border-bottom: 1px solid rgba(0,0,0,.1); padding-bottom: 18px; margin-bottom: 24px; }
+.demo-brand { display: flex; align-items: center; gap: 12px; }
+.demo-title { font-size: 22px; font-weight: 800; letter-spacing: -0.05em; }
+.demo-sub { font-size: 12.5px; color: #525252; margin-top: 3px; }
+.demo-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
+.demo-chip {
+  font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: -0.01em;
+  border: 1px solid rgba(0,0,0,.1); background: #fff; color: #000;
+  border-radius: 999px; padding: 7px 13px; cursor: pointer;
+  transition: background .5s cubic-bezier(.16,1,.3,1), color .5s cubic-bezier(.16,1,.3,1);
+}
+.demo-chip:hover { background: #f4f4f4; }
+.demo-chip.is-active { background: #000; color: #fff; border-color: #000; }
+.demo-status {
+  margin-top: 14px; font-family: ui-monospace, monospace; font-size: 11px;
+  text-transform: uppercase; letter-spacing: .06em; color: #525252;
+}
+.demo-status--pass { color: #1a7f37; }
+.demo-fake-chat {
+  border: 1px solid rgba(0,0,0,.1); border-radius: 14px; background: #fff;
+  padding: 18px; min-height: 260px; display: flex; flex-direction: column; gap: 14px;
+}
+.demo-fake-chat__label { font-family: ui-monospace, monospace; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #a3a3a3; }
+.demo-fake-chat__bubble { font-size: 13px; color: #525252; max-width: 46ch; line-height: 1.5; }
+.demo-fake-chat__composer {
+  margin-top: auto; border: 1px solid rgba(0,0,0,.1); border-radius: 999px;
+  padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; color: #a3a3a3;
+}
+.demo-fake-chat__send { width: 22px; height: 22px; border-radius: 50%; background: #000; color: #fff; display: grid; place-items: center; font-size: 12px; }
+.demo-out {
+  margin-top: 22px; padding: 16px; border: 1px solid rgba(0,0,0,.1); border-radius: 12px;
+  background: #fff; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word; display: none; color: #000;
+}
+.demo-out.is-visible { display: block; }

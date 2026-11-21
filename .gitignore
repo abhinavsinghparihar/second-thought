@@ -1,0 +1,27 @@
+node_modules/
+.turbo/
+dist/
+build/
+coverage/
+
+# Built extension output is committed for convenience of a one-click load,
+# but the zip artefact is not.
+extension/second-thought-extension.zip
+extension/.bundle-staging/
+
+# Screenshots and scratch output
+scratch/*.png
+scratch/tools/**/*.png
+*.log
+
+# Secrets must never be committed. There is no .env in this project; this line
+# exists so nobody adds one later.
+.env
+.env.*
+
+desktop/node_modules/
+desktop/dist/
+desktop/build/
+desktop/release/
+desktop/uia-helper/bin/
+desktop/uia-helper/obj/

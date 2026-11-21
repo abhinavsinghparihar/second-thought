@@ -2,165 +2,310 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Second Thought — Settings</title>
-  <style>
-    :root { color-scheme: light; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f2f0e9; color: #16211c; min-height: 100vh;
-    }
-    .wrap { max-width: 720px; margin: 0 auto; padding: 28px 20px 60px; }
-    header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-    .logo { width: 26px; height: 26px; border-radius: 8px; background: #c2410c; position: relative; }
-    .logo::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: #fbfaf7; }
-    h1 { font-size: 20px; font-weight: 750; letter-spacing: -0.01em; }
-    .tagline { font-size: 13px; color: #5c665e; margin-bottom: 24px; }
-    section {
-      background: #fbfaf7; border: 1px solid #e0dccd; border-radius: 14px;
-      padding: 18px 20px; margin-bottom: 16px;
-    }
-    section h2 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #1d2a22; }
-    section h2 .n { color: #c2410c; margin-right: 6px; font-variant-numeric: tabular-nums; }
-    .row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; gap: 16px; }
-    .row + .row { border-top: 1px solid #efece2; }
-    .lbl { font-size: 13.5px; font-weight: 600; }
-    .sub { font-size: 12px; color: #7a837b; margin-top: 2px; line-height: 1.4; max-width: 420px; }
-    .switch { position: relative; width: 36px; height: 21px; flex: none; }
-    .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; z-index: 1; }
-    .switch .track { position: absolute; inset: 0; background: #cfcaba; border-radius: 11px; transition: background 140ms; }
-    .switch .knob { position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; background: #fff; border-radius: 50%; transition: left 140ms; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
-    .switch input:checked + .track { background: #c2410c; }
-    .switch input:checked + .track .knob { left: 17px; }
-    select, input[type="text"], input[type="password"], textarea {
-      font-family: inherit; font-size: 13px; color: #16211c;
-      border: 1px solid #d8d4c8; border-radius: 9px; padding: 8px 10px; background: #fff;
-    }
-    select:focus, input:focus, textarea:focus { outline: 2px solid #c2410c33; border-color: #c2410c; }
-    .field { margin: 10px 0; }
-    .field label { display: block; font-size: 12px; font-weight: 650; color: #4c564e; margin-bottom: 5px; }
-    .field .wide { width: 100%; }
-    .inline { display: flex; gap: 8px; align-items: center; }
-    button.btn {
-      font-family: inherit; font-size: 13px; font-weight: 650; cursor: pointer;
-      border-radius: 9px; padding: 8px 14px; border: 1px solid #1d2a22;
-      background: #1d2a22; color: #fbfaf7;
-    }
-    button.btn:hover { background: #2c3f33; }
-    button.btn.secondary { background: transparent; color: #1d2a22; border-color: #cfcaba; }
-    button.btn.secondary:hover { background: #ece9de; }
-    button.btn:disabled { opacity: 0.5; cursor: default; }
-    .status { font-size: 12.5px; margin-top: 8px; min-height: 16px; }
-    .status.ok { color: #1d5e2a; }
-    .status.err { color: #b3261e; }
-    .hint { font-size: 11.5px; color: #7a837b; line-height: 1.5; margin-top: 10px; }
-    .hint a { color: #c2410c; }
-    .keyrow { display: none; }
-    .keyrow.show { display: block; }
-    .danger { color: #b3261e; }
-    footer { text-align: center; font-size: 11.5px; color: #7a837b; margin-top: 24px; }
-    footer a { color: #4c564e; }
-  </style>
+  <link rel="stylesheet" href="options.css" />
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="logo"></div>
-      <h1>Second Thought</h1>
+  <div class="page" id="shell" data-theme="light">
+    <!-- ── masthead ──────────────────────────────────────────────────── -->
+    <header class="masthead">
+      <div class="masthead__brand">
+        <span id="brand-mark"></span>
+        <div class="masthead__text">
+          <h1 class="masthead__title">Second Thought</h1>
+          <p class="masthead__tag">The pause between intention and send.</p>
+        </div>
+      </div>
+      <div class="masthead__meta">
+        <span class="st-eyebrow" id="version-label"></span>
+        <label class="theme-select" title="Appearance">
+          <span class="st-sr">Theme</span>
+          <select id="st-theme" class="st-select st-select--compact">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+      </div>
     </header>
-    <p class="tagline">An intelligent requirement-discovery layer for AI.</p>
 
-    <section>
-      <h2><span class="n">1</span>General</h2>
-      <div class="row">
-        <div><div class="lbl">Enable Second Thought</div><div class="sub">Master switch. When off, nothing is ever intercepted.</div></div>
-        <label class="switch"><input type="checkbox" id="st-enabled" /><span class="track"><span class="knob"></span></span></label>
-      </div>
-      <div class="row">
-        <div><div class="lbl">Automatic interception</div><div class="sub">Pause incomplete requests when you press send. When off you can still refine manually from the toolbar.</div></div>
-        <label class="switch"><input type="checkbox" id="st-intercept" /><span class="track"><span class="knob"></span></span></label>
-      </div>
-      <div class="row">
-        <div><div class="lbl">Questions per refinement</div><div class="sub">Maximum questions asked. 2–3 keeps friction low.</div></div>
-        <select id="st-maxq">
-          <option value="1">1</option><option value="2">2</option>
-          <option value="3" selected>3</option><option value="4">4</option><option value="5">5</option>
-        </select>
-      </div>
-      <div class="row">
-        <div><div class="lbl">Prompt history</div><div class="sub">Keep refined prompts locally on this device. <span class="danger">Off by default.</span></div></div>
-        <label class="switch"><input type="checkbox" id="st-history" /><span class="track"><span class="knob"></span></span></label>
-      </div>
-      <div class="row">
-        <button class="btn secondary" id="btn-clear-history">Clear history</button>
-        <span></span>
-      </div>
-    </section>
+    <main class="main">
+      <!-- ── status strip ───────────────────────────────────────────── -->
+      <section class="status-strip" aria-label="Current configuration">
+        <div class="status-strip__item">
+          <span class="st-eyebrow">Engine</span>
+          <span class="status-strip__value" id="status-engine">—</span>
+        </div>
+        <div class="status-strip__item">
+          <span class="st-eyebrow">Provider</span>
+          <span class="status-strip__value" id="status-provider">—</span>
+        </div>
+        <div class="status-strip__item">
+          <span class="st-eyebrow">Key</span>
+          <span class="status-strip__value" id="status-key">—</span>
+        </div>
+      </section>
 
-    <section>
-      <h2><span class="n">2</span>Analysis engine</h2>
-      <div class="row">
-        <div>
-          <div class="lbl">Engine</div>
-          <div class="sub"><b>Local</b> analyzes on-device with the built-in requirement engine — free, offline, no key needed. <b>AI-powered</b> sends the request text to your own AI provider to generate sharper questions.</div>
-        </div>
-        <select id="st-engine">
-          <option value="local">Local (on-device)</option>
-          <option value="ai">AI-powered</option>
-        </select>
-      </div>
-      <div id="ai-config">
-        <div class="field">
-          <label for="st-provider">Provider</label>
-          <select id="st-provider" class="wide"></select>
-        </div>
-        <div class="field">
-          <label for="st-model">Model</label>
-          <input type="text" id="st-model" class="wide" spellcheck="false" />
-        </div>
-        <div class="field keyrow" id="keyrow">
-          <label for="st-apikey">API key</label>
-          <div class="inline">
-            <input type="password" id="st-apikey" class="wide" placeholder="Paste your key…" spellcheck="false" autocomplete="off" />
-            <button class="btn" id="btn-save-key">Save</button>
+      <!-- ── 1. analysis ────────────────────────────────────────────── -->
+      <section class="panel" id="panel-engine" aria-labelledby="h-engine">
+        <div class="panel__head">
+          <span class="panel__n">01</span>
+          <div>
+            <h2 class="panel__title" id="h-engine">Analysis engine</h2>
+            <p class="panel__sub">Local analysis runs on your device. AI analysis sends the request text to your own provider.</p>
           </div>
-          <div class="hint">Stored only in this browser’s local extension storage. Never synced, never logged, sent only to your chosen provider. <a id="key-link" href="#" target="_blank" rel="noreferrer">Get a key ↗</a></div>
         </div>
-        <div class="inline" style="margin-top:12px">
-          <button class="btn secondary" id="btn-test">Test connection</button>
-          <span class="status" id="test-status"></span>
+
+        <div class="panel__body">
+          <div class="segmented" role="radiogroup" aria-labelledby="h-engine">
+            <button class="segmented__opt" role="radio" aria-checked="true" data-engine="local" id="engine-local">
+              <span class="segmented__title">Local</span>
+              <span class="segmented__sub">On-device · free · no network</span>
+            </button>
+            <button class="segmented__opt" role="radio" aria-checked="false" data-engine="ai" id="engine-ai">
+              <span class="segmented__title">AI-powered</span>
+              <span class="segmented__sub">Your own API key · sharper questions</span>
+            </button>
+          </div>
+
+          <div class="engine-explain" id="engine-explain"></div>
+
+          <div class="st-field" id="companion-block">
+            <label class="st-field__label">Windows companion (optional)</label>
+            <p class="st-field__hint">If you installed the Second Thought desktop app, the browser can share its engine and keys through Chrome Native Messaging. Nothing changes if it is not installed — the extension keeps working on its own.</p>
+            <div class="key-block__actions">
+              <button class="st-btn st-btn--sm st-btn--primary" id="btn-companion" type="button">Connect to companion</button>
+              <button class="st-btn st-btn--sm" id="btn-companion-off" type="button">Disconnect</button>
+              <span class="status-line" id="companion-status" role="status" aria-live="polite"></span>
+            </div>
+            <p class="st-field__hint">This browser's extension ID (needed once by the companion): <code id="ext-id"></code></p>
+          </div>
+
+          <!-- ── provider config ────────────────────────────────────── -->
+          <div class="ai-config" id="ai-config" aria-hidden="true">
+            <div class="ai-config__grid">
+              <div class="st-field">
+                <label class="st-field__label" for="st-provider">Provider</label>
+                <select id="st-provider" class="st-select"></select>
+              </div>
+              <div class="st-field">
+                <label class="st-field__label" for="st-model">Model</label>
+                <select id="st-model" class="st-select"></select>
+                <input id="st-model-manual" class="st-input" spellcheck="false" autocomplete="off" placeholder="Type a model id" hidden />
+                <p class="st-field__hint" id="model-status">Add a key to load the models it can use. The best one is selected for you.</p>
+                <button class="st-btn st-btn--sm" id="btn-models" type="button">Refresh models</button>
+              </div>
+            </div>
+
+            <div class="st-field" id="base-url-block" hidden>
+              <label class="st-field__label" for="st-base-url">Base URL (OpenAI-compatible)</label>
+              <div class="key-block__input">
+                <input id="st-base-url" class="st-input" spellcheck="false" autocomplete="off" placeholder="https://api.example.com/v1" />
+                <button class="st-btn st-btn--sm st-btn--primary" id="btn-base-url" type="button">Save &amp; allow</button>
+              </div>
+              <p class="st-field__hint">Works with Together, Fireworks, DeepSeek, Mistral, LM Studio, vLLM or any gateway that offers <code>/chat/completions</code> and <code>/models</code>. https only (plain http is allowed for localhost). The key is optional.</p>
+            </div>
+
+            <div class="key-block" id="key-block">
+              <div class="key-block__head">
+                <label class="st-field__label" for="st-apikey">API key</label>
+                <span class="key-block__state" id="key-state">No key saved</span>
+              </div>
+
+              <div class="key-block__input">
+                <input
+                  id="st-apikey"
+                  type="password"
+                  class="st-input"
+                  placeholder="Paste your key…"
+                  spellcheck="false"
+                  autocomplete="off"
+                  aria-describedby="key-help"
+                />
+                <button class="st-btn st-btn--sm" id="btn-toggle-key" type="button" aria-label="Show key">Show</button>
+                <button class="st-btn st-btn--sm st-btn--primary" id="btn-save-key" type="button">Save</button>
+              </div>
+
+              <p class="st-field__hint" id="key-help">
+                Stored in this browser's <code>chrome.storage.local</code> only — never synced to your Google account,
+                never sent to us, and used only to call the provider below.
+                <a id="key-link" href="#" target="_blank" rel="noreferrer">Get a key ↗</a>
+              </p>
+
+              <div class="key-block__actions">
+                <button class="st-btn st-btn--sm" id="btn-test" type="button">Test connection</button>
+                <button class="st-btn st-btn--sm st-btn--danger" id="btn-remove-key" type="button">Remove key</button>
+                <span class="status-line" id="test-status" role="status" aria-live="polite"></span>
+              </div>
+            </div>
+
+            <p class="dataflow" id="dataflow"></p>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section>
-      <h2><span class="n">3</span>Sites</h2>
-      <div class="field">
-        <label for="st-excluded">Never run on (one hostname per line)</label>
-        <textarea id="st-excluded" rows="3" spellcheck="false" placeholder="chatgpt.com&#10;internal-corp-chat.example.com"></textarea>
-      </div>
-      <div class="field">
-        <label for="st-custom">Additional AI sites (experimental, generic adapter)</label>
-        <textarea id="st-custom" rows="3" spellcheck="false" placeholder="chat.mistral.ai&#10;localhost"></textarea>
-        <div class="hint">Second Thought will ask for permission to run on these sites. Detection is heuristic; use with judgment. <b>localhost</b> is allowed for testing with the MockChat page.</div>
-        <div class="inline" style="margin-top:10px">
-          <button class="btn secondary" id="btn-apply-custom">Apply sites &amp; grant permission</button>
-          <span class="status" id="custom-status"></span>
+      <!-- ── 2. behaviour ───────────────────────────────────────────── -->
+      <section class="panel" aria-labelledby="h-behaviour">
+        <div class="panel__head">
+          <span class="panel__n">02</span>
+          <div>
+            <h2 class="panel__title" id="h-behaviour">Behaviour</h2>
+            <p class="panel__sub">How aggressively Second Thought pauses you before sending.</p>
+          </div>
         </div>
-      </div>
-    </section>
 
-    <section>
-      <h2><span class="n">4</span>Privacy</h2>
-      <div class="sub" style="max-width:none">
-        Second Thought analyzes requests on-device by default. Prompt history and analytics are off by default.
-        In AI-powered mode, the request text is sent by your browser directly to the provider you configured —
-        never to us. There is no Second Thought server involved in refinement. See the privacy documentation for details.
-      </div>
-    </section>
+        <div class="panel__body panel__body--flush">
+          <label class="row">
+            <span class="row__text">
+              <span class="row__label">Enable Second Thought</span>
+              <span class="row__sub">Master switch. When off, nothing is ever intercepted.</span>
+            </span>
+            <span class="switch"><input type="checkbox" id="st-enabled" /><span class="switch__track"><span class="switch__knob"></span></span></span>
+          </label>
 
-    <footer>Second Thought v0.1.0 · <a href="https://github.com/second-thought/second-thought" target="_blank" rel="noreferrer">Documentation</a></footer>
+          <label class="row">
+            <span class="row__text">
+              <span class="row__label">Pause before sending</span>
+              <span class="row__sub">Intercept incomplete requests when you press Enter.</span>
+            </span>
+            <span class="switch"><input type="checkbox" id="st-intercept" /><span class="switch__track"><span class="switch__knob"></span></span></span>
+          </label>
+
+          <label class="row">
+            <span class="row__text">
+              <span class="row__label">Adaptive follow-up</span>
+              <span class="row__sub">After the first answers, ask only what is still missing.</span>
+            </span>
+            <span class="switch"><input type="checkbox" id="st-adaptive" /><span class="switch__track"><span class="switch__knob"></span></span></span>
+          </label>
+
+          <div class="row">
+            <span class="row__text">
+              <span class="row__label">Questions per round</span>
+              <span class="row__sub">How many questions to ask at once. 3–4 keeps friction low.</span>
+            </span>
+            <select id="st-maxq" class="st-select st-select--compact">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </div>
+
+          <label class="row">
+            <span class="row__text">
+              <span class="row__label">Keep prompt history</span>
+              <span class="row__sub">Store refined prompts on this device. Off by default.</span>
+            </span>
+            <span class="switch"><input type="checkbox" id="st-history" /><span class="switch__track"><span class="switch__knob"></span></span></span>
+          </label>
+
+          <div class="row row--plain">
+            <button class="st-btn st-btn--sm" id="btn-history" type="button">View history</button>
+            <button class="st-btn st-btn--sm st-btn--danger" id="btn-clear-history" type="button">Clear history</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 3. sites ───────────────────────────────────────────────── -->
+      <section class="panel" aria-labelledby="h-sites">
+        <div class="panel__head">
+          <span class="panel__n">03</span>
+          <div>
+            <h2 class="panel__title" id="h-sites">Sites</h2>
+            <p class="panel__sub">Where Second Thought runs, and where it must stay silent.</p>
+          </div>
+        </div>
+
+        <div class="panel__body">
+          <div class="site-list" id="builtin-sites"></div>
+          <p class="st-field__hint site-list__note">
+            Capability labels are honest: <b>Supported</b> means the adapter is exercised in automated DOM tests.
+            <b>Beta</b> means selectors are layered and may need updating after a provider redesign.
+            <b>Experimental</b> means heuristic detection — verify manually.
+          </p>
+
+          <div class="st-field" style="margin-top:18px">
+            <label class="st-field__label" for="st-excluded">Never run on</label>
+            <textarea id="st-excluded" class="st-textarea" rows="3" spellcheck="false" placeholder="chatgpt.com&#10;internal-chat.example.com"></textarea>
+            <span class="st-field__hint">One hostname per line. Subdomains are included automatically.</span>
+          </div>
+
+          <div class="st-field" style="margin-top:14px">
+            <label class="st-field__label" for="st-custom">Additional AI sites</label>
+            <textarea id="st-custom" class="st-textarea" rows="3" spellcheck="false" placeholder="chat.mistral.ai&#10;localhost"></textarea>
+            <span class="st-field__hint">
+              Uses the heuristic adapter. Second Thought will ask for permission for exactly these hostnames — nothing else.
+            </span>
+            <div class="inline-actions">
+              <button class="st-btn st-btn--sm" id="btn-apply-custom" type="button">Apply &amp; grant permission</button>
+              <span class="status-line" id="custom-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 4. privacy & security ──────────────────────────────────── -->
+      <section class="panel" aria-labelledby="h-privacy">
+        <div class="panel__head">
+          <span class="panel__n">04</span>
+          <div>
+            <h2 class="panel__title" id="h-privacy">Privacy &amp; security</h2>
+            <p class="panel__sub">Exactly what leaves your browser, and what does not.</p>
+          </div>
+        </div>
+
+        <div class="panel__body">
+          <dl class="facts">
+            <div class="facts__row">
+              <dt>Local mode</dt>
+              <dd>Nothing leaves your browser. The requirement engine is plain JavaScript that runs in this extension.</dd>
+            </div>
+            <div class="facts__row">
+              <dt>AI mode</dt>
+              <dd>Only the text of the message you were about to send is sent — to the provider you chose, from your browser, using your key. There is no Second Thought server.</dd>
+            </div>
+            <div class="facts__row">
+              <dt>Keys</dt>
+              <dd>Kept in <code>chrome.storage.local</code>. Not synced, not logged, not included in error messages.</dd>
+            </div>
+            <div class="facts__row">
+              <dt>History</dt>
+              <dd>Off by default. When on, refined prompts stay in <code>chrome.storage.local</code> until you clear them.</dd>
+            </div>
+            <div class="facts__row">
+              <dt>Your original</dt>
+              <dd>Never discarded. If anything fails, the untouched message is sent exactly as you typed it.</dd>
+            </div>
+          </dl>
+
+          <div class="inline-actions">
+            <button class="st-btn st-btn--sm st-btn--danger" id="btn-wipe" type="button">Remove all saved keys &amp; history</button>
+            <span class="status-line" id="wipe-status" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="page-foot">
+      <span id="foot-ver"></span>
+      <span class="st-spacer"></span>
+      <a href="https://github.com/abhinavsinghparihar/second-thought" target="_blank" rel="noreferrer">Documentation</a>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
+
+  <dialog class="modal" id="history-modal" aria-labelledby="history-title">
+    <div class="modal__head">
+      <h2 class="modal__title" id="history-title">History</h2>
+      <button class="icon-btn" id="btn-close-history" aria-label="Close">✕</button>
+    </div>
+    <div class="modal__body" id="history-body"></div>
+  </dialog>
+
   <script src="options.js"></script>
 </body>
 </html>

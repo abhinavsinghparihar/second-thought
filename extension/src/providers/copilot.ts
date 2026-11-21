@@ -1,48 +1,34 @@
-import { isVisible, q, readInputText, writeInputText, type ProviderAdapter } from './types';
+import { createAdapter, type AdapterSpec } from './base';
 
 /**
- * Microsoft Copilot (copilot.microsoft.com) — adapter with unknown maturity.
- * The surface changes frequently; selectors are heuristic and QA is pending,
- * hence capability "unknown". Failure behavior is identical to other
- * adapters: any error releases the user's original send untouched.
+ * Microsoft Copilot (copilot.microsoft.com).
+ *
+ * The surface is rewritten often and has no stable test ids, so detection here
+ * is heuristic: the largest visible textarea or contenteditable in <main>.
+ *
+ * Capability "unknown" — deliberately honest. It is registered so the user can
+ * try it, and every failure path releases their original send untouched.
  */
-export const copilotAdapter: ProviderAdapter = {
+const spec: AdapterSpec = {
   id: 'copilot',
   name: 'Microsoft Copilot',
   capability: 'unknown',
   homepage: 'https://copilot.microsoft.com',
-
-  matches(hostname: string): boolean {
-    return hostname === 'copilot.microsoft.com' || hostname.endsWith('.copilot.microsoft.com');
-  },
-
-  findInput(): HTMLElement | null {
-    const candidates = Array.from(
-      document.querySelectorAll<HTMLElement>('main textarea, form textarea, div[contenteditable="true"]'),
-    ).filter(isVisible);
-    return candidates[0] ?? null;
-  },
-
-  findSendButton(): HTMLElement | null {
-    return q<HTMLElement>(
-      'button[aria-label*="submit" i], button[aria-label*="send" i], main button[data-testid="send-button"], form button[type="submit"]',
-    );
-  },
-
-  getText(input: HTMLElement): string {
-    return readInputText(input);
-  },
-
-  setText(input: HTMLElement, text: string): boolean {
-    return writeInputText(input, text);
-  },
-
-  submit(): boolean {
-    const btn = this.findSendButton();
-    if (btn && !(btn as HTMLButtonElement).disabled) {
-      (btn as HTMLButtonElement).click();
-      return true;
-    }
-    return false;
-  },
+  hosts: ['copilot.microsoft.com'],
+  matchSubdomains: true,
+  inputSelectors: [
+    'main textarea',
+    'form textarea',
+    'main div[contenteditable="true"][role="textbox"]',
+    'main div[contenteditable="true"]',
+  ],
+  sendSelectors: [
+    'button[aria-label*="Submit" i]',
+    'button[aria-label*="Send" i]',
+    'main button[data-testid="send-button"]',
+    'form button[type="submit"]',
+  ],
+  verification: 'Not tested against the live site. Heuristic selectors.',
 };
+
+export const copilotAdapter = createAdapter(spec);

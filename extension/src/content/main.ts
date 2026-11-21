@@ -1,8 +1,11 @@
 import { Controller } from './controller';
 
 /**
- * Entry point. Everything is defensive: if the extension context is dead
- * (e.g. after an update), the page continues to work exactly as before.
+ * Content-script entry point.
+ *
+ * Everything is defensive: if the extension context is dead (e.g. after an
+ * update), if the page is a SPA mid-navigation, or if anything else goes
+ * wrong, the host page continues to behave exactly as it did before.
  */
 try {
   if (chrome?.runtime?.id) {
@@ -10,5 +13,5 @@ try {
     void controller.start();
   }
 } catch {
-  // context invalidated or unsupported — stay passive
+  // context invalidated or unsupported — stay completely passive
 }

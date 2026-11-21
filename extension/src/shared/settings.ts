@@ -1,128 +1,194 @@
 /**
- * Extension settings.
+ * Extension settings and credential storage.
  *
- * Privacy rules:
- *  - Non-sensitive settings live in chrome.storage.sync (they contain no
- *    prompts or keys).
- *  - The API key lives ONLY in chrome.storage.local — never synced, never
- *    logged, never included in analytics.
- *  - Prompt history lives in chrome.storage.local and is OFF by default.
+ * Privacy & security rules enforced here:
+ *  - Non-sensitive settings → `chrome.storage.sync` (no prompts, no keys).
+ *  - API keys → `chrome.storage.local` ONLY. Never synced (a synced key would
+ *    travel to every signed-in Chrome profile and to Google's servers).
+ *  - Keys are never logged and never included in error strings.
+ *  - Prompt history → `chrome.storage.local`, off by default.
+ *  - No default key, no bundled key, no fallback key. Ever.
  */
 
-export type AiProviderId = 'openai' | 'anthropic' | 'gemini' | 'openrouter' | 'ollama';
+import { normalizeBaseUrl, type AiProviderId } from '../background/providers/types';
+import { allProviderMeta, isAiProviderId } from '../background/providers/registry';
+
+export type { AiProviderId };
 export type AnalysisEngine = 'local' | 'ai';
 
 export interface Settings {
-  /** Master switch. When off, the extension never intercepts anything. */
+  /** Master switch. Off ⇒ the extension never intercepts anything. */
   enabled: boolean;
-  /** Intercept sends automatically (OFF = manual refine via toolbar only). */
+  /** Intercept sends automatically (off = manual refine from the toolbar only). */
   autoIntercept: boolean;
-  /** Local heuristic engine (free, offline) or AI-powered analysis. */
+  /** Local heuristic engine, or AI-powered analysis with the user's key. */
   analysisEngine: AnalysisEngine;
   aiProvider: AiProviderId;
   aiModel: string;
-  /** Max questions asked per refinement (1–5). */
+  /** Base URL for the Custom (OpenAI-compatible) provider, e.g. https://api.example.com/v1. */
+  customBaseUrl: string;
+  /** Delegate analysis to the Windows companion when it is installed and running. */
+  useCompanion: boolean;
+  /** Questions asked per round (1–6). */
   maxQuestions: number;
-  /** Store refined prompts locally. OFF by default. */
+  /** Allow one adaptive follow-up round. */
+  adaptiveFollowUp: boolean;
+  /** Store refined prompts locally. Off by default. */
   historyEnabled: boolean;
-  /** Aggregate, prompt-free analytics. OFF by default. */
-  analyticsEnabled: boolean;
   /** Hostnames where Second Thought never runs. */
   excludedSites: string[];
   /** Extra user-added hostnames served by the generic adapter. */
   customSites: string[];
+  /** UI theme. */
+  theme: 'system' | 'light' | 'dark';
+  /** Completed first-run onboarding. */
+  onboarded: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
   autoIntercept: true,
-  analysisEngine: 'local',
-  aiProvider: 'openai',
-  aiModel: 'gpt-4o-mini',
-  maxQuestions: 3,
+  analysisEngine: 'ai',
+  aiProvider: 'gemini',
+  /** Empty = automatic: the best model available to the saved key is chosen at call time. */
+  aiModel: '',
+  customBaseUrl: '',
+  useCompanion: false,
+  maxQuestions: 4,
+  adaptiveFollowUp: true,
   historyEnabled: false,
-  analyticsEnabled: false,
   excludedSites: [],
   customSites: [],
+  theme: 'system',
+  onboarded: false,
 };
 
-export const AI_PROVIDERS: Array<{
-  id: AiProviderId;
-  name: string;
-  defaultModel: string;
-  models: string[];
-  keyUrl?: string;
-  needsKey: boolean;
-}> = [
-  {
-    id: 'openai',
-    name: 'OpenAI',
-    defaultModel: 'gpt-4o-mini',
-    models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'o4-mini'],
-    keyUrl: 'https://platform.openai.com/api-keys',
-    needsKey: true,
-  },
-  {
-    id: 'anthropic',
-    name: 'Anthropic',
-    defaultModel: 'claude-3-5-haiku-latest',
-    models: ['claude-3-5-haiku-latest', 'claude-3-5-sonnet-latest'],
-    keyUrl: 'https://console.anthropic.com/settings/keys',
-    needsKey: true,
-  },
-  {
-    id: 'gemini',
-    name: 'Google Gemini',
-    defaultModel: 'gemini-1.5-flash',
-    models: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'],
-    keyUrl: 'https://aistudio.google.com/app/apikey',
-    needsKey: true,
-  },
-  {
-    id: 'openrouter',
-    name: 'OpenRouter',
-    defaultModel: 'openai/gpt-4o-mini',
-    models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-haiku', 'google/gemini-flash-1.5', 'meta-llama/llama-3.1-8b-instruct'],
-    keyUrl: 'https://openrouter.ai/keys',
-    needsKey: true,
-  },
-  {
-    id: 'ollama',
-    name: 'Ollama (local)',
-    defaultModel: 'llama3.1',
-    models: ['llama3.1', 'llama3.2', 'qwen2.5', 'mistral'],
-    needsKey: false,
-  },
-];
+export interface StoredKey {
+  key: string;
+  /** When it was saved — shown in Settings so the user can spot a stale key. */
+  savedAt: number;
+  /** Last 4 characters, so the user can identify *which* key is stored. */
+  hint: string;
+}
 
 const SETTINGS_KEY = 'settings';
-const API_KEY_KEY = 'apiKey';
+const KEY_PREFIX = 'apiKey:';
+
+// ── settings ────────────────────────────────────────────────────────────────
 
 export async function loadSettings(): Promise<Settings> {
   const stored = (await chrome.storage.sync.get(SETTINGS_KEY))[SETTINGS_KEY] as Partial<Settings> | undefined;
-  return { ...DEFAULT_SETTINGS, ...(stored ?? {}) };
+  return sanitiseSettings({ ...DEFAULT_SETTINGS, ...(stored ?? {}) });
 }
 
 export async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
   const current = await loadSettings();
-  const next = { ...current, ...patch };
+  const next = sanitiseSettings({ ...current, ...patch });
   await chrome.storage.sync.set({ [SETTINGS_KEY]: next });
   return next;
 }
 
-/** The API key never leaves chrome.storage.local. */
-export async function getApiKey(): Promise<string> {
-  const stored = (await chrome.storage.local.get(API_KEY_KEY))[API_KEY_KEY];
-  return typeof stored === 'string' ? stored : '';
+/** Clamp anything that could arrive corrupted from sync or a bad message. */
+export function sanitiseSettings(input: Settings): Settings {
+  return {
+    enabled: Boolean(input.enabled),
+    autoIntercept: Boolean(input.autoIntercept),
+    analysisEngine: input.analysisEngine === 'ai' ? 'ai' : 'local',
+    aiProvider: isAiProviderId(input.aiProvider) ? input.aiProvider : DEFAULT_SETTINGS.aiProvider,
+    // Empty means automatic. A stored value equal to the old built-in default
+    // is treated as "never chosen" so existing installs move to automatic too.
+    aiModel: typeof input.aiModel === 'string' && input.aiModel.trim() !== '' && input.aiModel.trim() !== defaultModelFor(input.aiProvider)
+      ? input.aiModel.trim().slice(0, 120)
+      : '',
+    customBaseUrl: normalizeBaseUrl(input.customBaseUrl) ?? '',
+    useCompanion: input.useCompanion === true,
+    maxQuestions: Math.max(1, Math.min(6, Math.round(Number(input.maxQuestions) || 4))),
+    adaptiveFollowUp: input.adaptiveFollowUp !== false,
+    historyEnabled: Boolean(input.historyEnabled),
+    excludedSites: normaliseHostList(input.excludedSites),
+    customSites: normaliseHostList(input.customSites),
+    theme: input.theme === 'light' || input.theme === 'dark' ? input.theme : 'system',
+    onboarded: Boolean(input.onboarded),
+  };
 }
 
-export async function setApiKey(key: string): Promise<void> {
-  if (key.trim() === '') {
-    await chrome.storage.local.remove(API_KEY_KEY);
-  } else {
-    await chrome.storage.local.set({ [API_KEY_KEY]: key });
+function normaliseHostList(list: unknown): string[] {
+  if (!Array.isArray(list)) return [];
+  const out = new Set<string>();
+  for (const entry of list) {
+    if (typeof entry !== 'string') continue;
+    const clean = entry.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    if (clean === '') continue;
+    if (clean !== 'localhost' && !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(clean)) continue;
+    out.add(clean);
+  }
+  return Array.from(out);
+}
+
+export function defaultModelFor(provider: AiProviderId): string {
+  return allProviderMeta().find((p) => p.id === provider)?.defaultModel ?? DEFAULT_SETTINGS.aiModel;
+}
+
+// ── credentials ─────────────────────────────────────────────────────────────
+
+function keyStorageKey(provider: AiProviderId): string {
+  return `${KEY_PREFIX}${provider}`;
+}
+
+/** Returns '' when no key is stored — never throws. */
+export async function getApiKey(provider: AiProviderId): Promise<string> {
+  try {
+    const stored = (await chrome.storage.local.get(keyStorageKey(provider)))[keyStorageKey(provider)] as
+      | StoredKey
+      | undefined;
+    return typeof stored?.key === 'string' ? stored.key : '';
+  } catch {
+    return '';
   }
 }
+
+/** Metadata only — the key itself is never returned across a message boundary. */
+export async function getKeyInfo(provider: AiProviderId): Promise<{ hasKey: boolean; savedAt: number; hint: string }> {
+  try {
+    const stored = (await chrome.storage.local.get(keyStorageKey(provider)))[keyStorageKey(provider)] as
+      | StoredKey
+      | undefined;
+    return {
+      hasKey: typeof stored?.key === 'string' && stored.key !== '',
+      savedAt: stored?.savedAt ?? 0,
+      hint: stored?.hint ?? '',
+    };
+  } catch {
+    return { hasKey: false, savedAt: 0, hint: '' };
+  }
+}
+
+export async function setApiKey(provider: AiProviderId, key: string): Promise<void> {
+  const trimmed = key.trim();
+  if (trimmed === '') {
+    await clearApiKey(provider);
+    return;
+  }
+  const record: StoredKey = {
+    key: trimmed,
+    savedAt: Date.now(),
+    hint: trimmed.slice(-4),
+  };
+  await chrome.storage.local.set({ [keyStorageKey(provider)]: record });
+}
+
+export async function clearApiKey(provider: AiProviderId): Promise<void> {
+  await chrome.storage.local.remove(keyStorageKey(provider));
+}
+
+/** Remove every stored key — used by "Remove all credentials". */
+export async function clearAllKeys(): Promise<void> {
+  const all = await chrome.storage.local.get(null);
+  const keys = Object.keys(all).filter((k) => k.startsWith(KEY_PREFIX));
+  if (keys.length > 0) await chrome.storage.local.remove(keys);
+}
+
+// ── host helpers ────────────────────────────────────────────────────────────
 
 export function hostnameOf(url: string): string {
   try {

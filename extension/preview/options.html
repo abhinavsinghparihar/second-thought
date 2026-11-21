@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Second Thought — settings preview</title>
+<style>:root{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}body{background:var(--st-bg);color:var(--st-fg);min-height:100vh}.page{max-width:760px;margin:0 auto;padding:0 24px 48px;position:relative}.masthead{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:34px 0 22px;border-bottom:1px solid var(--st-line);position:sticky;top:0;background:var(--st-bg);z-index:10}.masthead__brand{display:flex;align-items:center;gap:14px}.masthead__title{font-size:26px;font-weight:800;letter-spacing:-.055em;line-height:1}.masthead__tag{font-size:12.5px;color:var(--st-fg-muted);letter-spacing:-.01em;margin-top:5px}.masthead__meta{display:flex;align-items:center;gap:12px;flex:none}.st-select--compact{width:auto;min-width:108px;padding:6px 30px 6px 10px;font-size:12px}.status-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--st-line);border-bottom:1px solid var(--st-line);margin:0 -24px;padding:0}.status-strip__item{background:var(--st-bg);padding:15px 24px;display:flex;flex-direction:column;gap:5px}.status-strip__value{font-size:13px;font-weight:650;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.main{padding-top:8px}.panel{padding:30px 0 6px;border-bottom:1px solid var(--st-line)}.panel:last-of-type{border-bottom:0}.panel__head{display:flex;gap:16px;align-items:flex-start;margin-bottom:20px}.panel__n{font-family:var(--st-font-mono);font-size:11px;font-weight:600;color:var(--st-fg-faint);letter-spacing:.06em;padding-top:5px;flex:none}.panel__title{font-size:21px;font-weight:750;letter-spacing:-.045em;line-height:1.1}.panel__sub{font-size:12.5px;color:var(--st-fg-muted);line-height:1.5;margin-top:6px;max-width:56ch;letter-spacing:-.01em}.panel__body{padding-bottom:26px}.panel__body--flush{padding-bottom:8px}.segmented{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.segmented__opt{appearance:none;text-align:left;font-family:inherit;background:var(--st-bg);border:1px solid var(--st-line);border-radius:var(--st-radius-md);padding:13px 15px;cursor:pointer;display:flex;flex-direction:column;gap:3px;transition:border-color var(--st-dur-fast) var(--st-ease),background var(--st-dur-fast) var(--st-ease)}.segmented__opt:hover{border-color:var(--st-line-strong)}.segmented__opt[aria-checked=true]{border-color:var(--st-fg);box-shadow:inset 0 0 0 1px var(--st-fg)}.segmented__title{font-size:13.5px;font-weight:700;letter-spacing:-.02em}.segmented__sub{font-size:11.5px;color:var(--st-fg-subtle);letter-spacing:-.005em}.segmented__opt:focus-visible{outline:2px solid var(--st-focus);outline-offset:2px}.engine-explain{font-size:12px;line-height:1.55;color:var(--st-fg-muted);padding:10px 12px;border-left:2px solid var(--st-line-strong);background:var(--st-bg-subtle);border-radius:0 var(--st-radius-sm) var(--st-radius-sm) 0;letter-spacing:-.01em}.ai-config{margin-top:20px;padding-top:20px;border-top:1px solid var(--st-line);transition:opacity var(--st-dur-base) var(--st-ease)}.ai-config[aria-hidden=true]{opacity:.42;pointer-events:none}.ai-config__grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.key-block{margin-top:18px}.key-block__head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px}.key-block__state{font-family:var(--st-font-mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--st-fg-subtle)}.key-block__state--saved{color:var(--st-ok)}.key-block__input{display:flex;gap:7px;align-items:center}.key-block__input .st-input{flex:1;font-family:var(--st-font-mono);font-size:12px}.key-block__actions{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}code{font-family:var(--st-font-mono);font-size:.92em;background:var(--st-bg-subtle);border:1px solid var(--st-line);border-radius:4px;padding:.5px 4px}.dataflow{margin-top:16px;font-size:11.5px;line-height:1.55;color:var(--st-fg-subtle);display:flex;gap:7px;align-items:flex-start}.dataflow:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--st-fg-faint);margin-top:6px;flex:none}.status-line{font-size:11.5px;line-height:1.45;color:var(--st-fg-muted)}.status-line--ok{color:var(--st-ok)}.status-line--err{color:var(--st-danger)}.status-line:empty{display:none}.row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 0;border-bottom:1px solid var(--st-line);cursor:pointer}.row:last-child{border-bottom:0}.row--plain{cursor:default;gap:8px;justify-content:flex-start}.row__text{display:flex;flex-direction:column;gap:3px}.row__label{font-size:13.5px;font-weight:650;letter-spacing:-.02em}.row__sub{font-size:11.5px;color:var(--st-fg-subtle);line-height:1.45;letter-spacing:-.005em;max-width:44ch}.switch{position:relative;width:38px;height:22px;flex:none}.switch input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;z-index:1}.switch__track{position:absolute;inset:0;border-radius:var(--st-radius-pill);background:var(--st-line-strong);transition:background var(--st-dur-base) var(--st-ease)}.switch__knob{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #00000040;transition:left var(--st-dur-base) var(--st-ease)}.switch input:checked+.switch__track{background:var(--st-accent)}.switch input:checked+.switch__track .switch__knob{left:19px}.switch input:checked+.switch__track .switch__knob{background:var(--st-accent-fg)}.switch input:focus-visible+.switch__track{outline:2px solid var(--st-focus);outline-offset:2px}.site-list{display:flex;flex-direction:column}.site-list__row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--st-line)}.site-list__row:first-child{border-top:1px solid var(--st-line)}.site-list__name{font-size:13px;font-weight:600;letter-spacing:-.02em}.site-list__host{font-family:var(--st-font-mono);font-size:10.5px;color:var(--st-fg-faint);letter-spacing:.02em}.site-list__note{margin-top:10px;font-size:11px;line-height:1.6;max-width:68ch}.facts{margin:0;display:flex;flex-direction:column}.facts__row{display:grid;grid-template-columns:108px 1fr;gap:16px;padding:11px 0;border-bottom:1px solid var(--st-line)}.facts__row:last-child{border-bottom:0}.facts dt{font-family:var(--st-font-mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--st-fg-subtle);padding-top:2px}.facts dd{margin:0;font-size:12.5px;line-height:1.55;color:var(--st-fg-muted);letter-spacing:-.005em}.inline-actions{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}.page-foot{display:flex;align-items:center;padding:20px 0 0;font-size:11.5px;color:var(--st-fg-subtle);border-top:1px solid var(--st-line);margin-top:20px}.page-foot a{color:var(--st-fg-muted);text-decoration:underline;text-underline-offset:2.5px;text-decoration-color:var(--st-line-strong)}.page-foot a:hover{color:var(--st-fg)}.modal{border:1px solid var(--st-line);border-radius:var(--st-radius-lg);background:var(--st-bg-raised);color:var(--st-fg);padding:0;width:min(560px,92vw);max-height:76vh;box-shadow:var(--st-shadow-raise)}.modal::backdrop{background:var(--st-overlay)}.modal__head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--st-line);position:sticky;top:0;background:var(--st-bg-raised)}.modal__title{font-size:16px;font-weight:750;letter-spacing:-.04em}.modal__body{padding:6px 18px 18px;overflow-y:auto}.history-item{padding:14px 0;border-bottom:1px solid var(--st-line)}.history-item:last-child{border-bottom:0}.history-item__meta{display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap;font-family:var(--st-font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--st-fg-faint)}.history-item__text{font-size:12px;line-height:1.5;color:var(--st-fg-muted);white-space:pre-wrap;word-break:break-word;max-height:96px;overflow:hidden;position:relative}.history-item__score{color:var(--st-fg);font-weight:700}.empty{padding:34px 0;text-align:center;color:var(--st-fg-subtle);font-size:12.5px;line-height:1.6}.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,8px);background:var(--st-bg-inverse);color:var(--st-fg-inverse);font-size:12px;letter-spacing:-.01em;padding:10px 16px;border-radius:var(--st-radius-pill);opacity:0;pointer-events:none;z-index:50;transition:opacity var(--st-dur-base) var(--st-ease),transform var(--st-dur-base) var(--st-ease);max-width:80vw}.toast.show{opacity:1;transform:translate(-50%)}.toast--danger{background:var(--st-danger);color:#fff}.panel{animation:st-fade-up var(--st-dur-slow) var(--st-ease) both}.panel:nth-of-type(2){animation-delay:40ms}.panel:nth-of-type(3){animation-delay:80ms}.panel:nth-of-type(4){animation-delay:.12s}.panel:nth-of-type(5){animation-delay:.16s}@media (max-width: 620px){.page{padding:0 16px 40px}.status-strip{margin:0 -16px;grid-template-columns:1fr}.status-strip__item{padding:12px 16px}.ai-config__grid,.segmented{grid-template-columns:1fr}.facts__row{grid-template-columns:1fr;gap:4px}.masthead{flex-direction:column;align-items:flex-start}.masthead__meta{width:100%;justify-content:space-between}}@media (prefers-reduced-motion: reduce){.panel{animation:none}}
+</style>
+<style>
+  /* preview chrome only — not part of the product */
+  html { background: #f4f4f4; }
+  body { margin: 0; }
+  .preview-note {
+    font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: #737373; padding: 12px 16px; background: #fafafa;
+    border-bottom: 1px solid rgba(0,0,0,.1); display: flex; gap: 12px; align-items: center;
+  }
+  .preview-note b { color: #000; }
+  .preview-note a { color: #525252; }
+  .preview-stage { display: flex; justify-content: center; padding: 28px 16px 40px; }
+  .preview-stage--page { padding: 0; display: block; }
+</style>
+</head>
+<body>
+<div class="preview-note"><b>UI preview</b><span>Settings page · full width · relative URLs are inert in preview</span></div>
+<div class="preview-stage preview-stage--page">
+  <div class="page" id="shell" data-theme="light">
+    <!-- ── masthead ──────────────────────────────────────────────────── -->
+    <header class="masthead">
+      <div class="masthead__brand">
+        <span id="brand-mark"></span>
+        <div class="masthead__text">
+          <h1 class="masthead__title">Second Thought</h1>
+          <p class="masthead__tag">The pause between intention and send.</p>
+        </div>
+      </div>
+      <div class="masthead__meta">
+        <span class="st-eyebrow" id="version-label"></span>
+        <label class="theme-select" title="Appearance">
+          <span class="st-sr">Theme</span>
+          <select id="st-theme" class="st-select st-select--compact">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- ── status strip ───────────────────────────────────────────── -->
+      <section class="status-strip" aria-label="Current configuration">
+        <div class="status-strip__item">
+          <span class="st-eyebrow">Engine</span>
+          <span class="status-strip__value" id="status-engine">—</span>
+        </div>
+        <div class="status-strip__item">
+          <span class="st-eyebrow">Provider</span>
+          <span class="status-strip__value" id="status-provider">—</span>
+        </div>
+        <div class="status-strip__item">
+          <span class="st-eyebrow">Key</span>
+          <span class="status-strip__value" id="status-key">—</span>
+        </div>
+      </section>
+
+      <!-- ── 1. analysis ────────────────────────────────────────────── -->
+      <section class="panel" id="panel-engine" aria-labelledby="h-engine">
+        <div class="panel__head">
+          <span class="panel__n">01</span>
+          <div>
+            <h2 class="panel__title" id="h-engine">Analysis engine</h2>
+            <p class="panel__sub">Local analysis runs on your device. AI analysis sends the request text to your own provider.</p>
+          </div>
+        </div>
+
+        <div class="panel__body">
+          <div class="segmented" role="radiogroup" aria-labelledby="h-engine">
+            <button class="segmented__opt" role="radio" aria-checked="true" data-engine="local" id="engine-local">
+              <span class="segmented__title">Local</span>
+              <span class="segmented__sub">On-device · free · no network</span>
+            </button>
+            <button class="segmented__opt" role="radio" aria-checked="false" data-engine="ai" id="engine-ai">
+              <span class="segmented__title">AI-powered</span>
+              <span class="segmented__sub">Your own API key · sharper questions</span>
+            </button>
+          </div>
+
+          <div class="engine-explain" id="engine-explain"></div>
+
+          <!-- ── provider config ────────────────────────────────────── -->
+          <div class="ai-config" id="ai-config" aria-hidden="true">
+            <div class="ai-config__grid">
+              <div class="st-field">
+                <label class="st-field__label" for="st-provider">Provider</label>
+                <select id="st-provider" class="st-select"></select>
+              </div>
+              <div class="st-field">
+                <label class="st-field__label" for="st-model">Model</label>
+                <input id="st-model" class="st-input" list="model-list" spellcheck="false" autocomplete="off" />
+                <datalist id="model-list"></datalist>
+              </div>
+            </div>
+
+            <div class="key-block" id="key-block">
+              <div class="key-block__head">
+                <label class="st-field__label" for="st-apikey">API key</label>
+                <span class="key-block__state" id="key-state">No key saved</span>
+              </div>
+
+              <div class="key-block__input">
+                <input
+                  id="st-apikey"
+                  type="password"
+                  class="st-input"
+                  placeholder="Paste your key…"
+                  spellcheck="false"
+                  autocomplete="off"
+                  aria-describedby="key-help"
+                />
+                <button class="st-btn st-btn--sm" id="btn-toggle-key" type="button" aria-label="Show key">Show</button>
+                <button class="st-btn st-btn--sm st-btn--primary" id="btn-save-key" type="button">Save</button>
+              </div>
+
+              <p class="st-field__hint" id="key-help">
+                Stored in this browser's <code>chrome.storage.local</code> only — never synced to your Google account,
+                never sent to us, and used only to call the provider below.
+                <a id="key-link" href="#" target="_blank" rel="noreferrer">Get a key ↗</a>
+              </p>
+
+              <div class="key-block__actions">
+                <button class="st-btn st-btn--sm" id="btn-test" type="button">Test connection</button>
+                <button class="st-btn st-btn--sm st-btn--danger" id="btn-remove-key" type="button">Remove key</button>
+                <span class="status-line" id="test-status" role="status" aria-live="polite"></span>
+              </div>
+            </div>
+
+            <p class="dataflow" id="dataflow"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 2. behaviour ───────────────────────────────────────────── -->
+      <section class="panel" aria-labelledby="h-behaviour">
+        <div class="panel__head">
+          <span class="panel__n">02</span>
+          <div>
+            <h2 class="panel__title" id="h-behaviour">Behaviour</h2>
+            <p class="panel__sub">How aggressively Second Thought pauses you before sending.</p>
+          </div>
+        </div>
+
+        <div class="panel__body panel__body--flush">
+          <label class="row">
+            <span class="row__text">
+              <span class="row__label">Enable Second Thought</span>
+              <span class="row__sub">Master switch. When off, nothing is ever intercepted.</span>
+            </span>
+            <span class="switch"><input type="checkbox" id="st-enabled" /><span class="switch__track"><span class="switch__knob"></span></span></span>
+          </label>
+
+          <label class="row">
+            <span class="row__text">
+              <span class="row__label">Pause before sending</span>
+              <span class="row__sub">Intercept incomplete requests when you press Enter.</span>
+            </span>
+            <span class="switch"><input type="checkbox" id="st-intercept" /><span class="switch__track"><span class="switch__knob"></span></span></span>
+          </label>
+
+          <label class="row">
+            <span class="row__text">
+              <span class="row__label">Adaptive follow-up</span>
+              <span class="row__sub">After the first answers, ask only what is still missing.</span>
+            </span>
+            <span class="switch"><input type="checkbox" id="st-adaptive" /><span class="switch__track"><span class="switch__knob"></span></span></span>
+          </label>
+
+          <div class="row">
+            <span class="row__text">
+              <span class="row__label">Questions per round</span>
+              <span class="row__sub">How many questions to ask at once. 3–4 keeps friction low.</span>
+            </span>
+            <select id="st-maxq" class="st-select st-select--compact">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </div>
+
+          <label class="row">
+            <span class="row__text">
+              <span class="row__label">Keep prompt history</span>
+              <span class="row__sub">Store refined prompts on this device. Off by default.</span>
+            </span>
+            <span class="switch"><input type="checkbox" id="st-history" /><span class="switch__track"><span class="switch__knob"></span></span></span>
+          </label>
+
+          <div class="row row--plain">
+            <button class="st-btn st-btn--sm" id="btn-history" type="button">View history</button>
+            <button class="st-btn st-btn--sm st-btn--danger" id="btn-clear-history" type="button">Clear history</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 3. sites ───────────────────────────────────────────────── -->
+      <section class="panel" aria-labelledby="h-sites">
+        <div class="panel__head">
+          <span class="panel__n">03</span>
+          <div>
+            <h2 class="panel__title" id="h-sites">Sites</h2>
+            <p class="panel__sub">Where Second Thought runs, and where it must stay silent.</p>
+          </div>
+        </div>
+
+        <div class="panel__body">
+          <div class="site-list" id="builtin-sites"></div>
+          <p class="st-field__hint site-list__note">
+            Capability labels are honest: <b>Supported</b> means the adapter is exercised in automated DOM tests.
+            <b>Beta</b> means selectors are layered and may need updating after a provider redesign.
+            <b>Experimental</b> means heuristic detection — verify manually.
+          </p>
+
+          <div class="st-field" style="margin-top:18px">
+            <label class="st-field__label" for="st-excluded">Never run on</label>
+            <textarea id="st-excluded" class="st-textarea" rows="3" spellcheck="false" placeholder="chatgpt.com&#10;internal-chat.example.com"></textarea>
+            <span class="st-field__hint">One hostname per line. Subdomains are included automatically.</span>
+          </div>
+
+          <div class="st-field" style="margin-top:14px">
+            <label class="st-field__label" for="st-custom">Additional AI sites</label>
+            <textarea id="st-custom" class="st-textarea" rows="3" spellcheck="false" placeholder="chat.mistral.ai&#10;localhost"></textarea>
+            <span class="st-field__hint">
+              Uses the heuristic adapter. Second Thought will ask for permission for exactly these hostnames — nothing else.
+            </span>
+            <div class="inline-actions">
+              <button class="st-btn st-btn--sm" id="btn-apply-custom" type="button">Apply &amp; grant permission</button>
+              <span class="status-line" id="custom-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 4. privacy & security ──────────────────────────────────── -->
+      <section class="panel" aria-labelledby="h-privacy">
+        <div class="panel__head">
+          <span class="panel__n">04</span>
+          <div>
+            <h2 class="panel__title" id="h-privacy">Privacy &amp; security</h2>
+            <p class="panel__sub">Exactly what leaves your browser, and what does not.</p>
+          </div>
+        </div>
+
+        <div class="panel__body">
+          <dl class="facts">
+            <div class="facts__row">
+              <dt>Local mode</dt>
+              <dd>Nothing leaves your browser. The requirement engine is plain JavaScript that runs in this extension.</dd>
+            </div>
+            <div class="facts__row">
+              <dt>AI mode</dt>
+              <dd>Only the text of the message you were about to send is sent — to the provider you chose, from your browser, using your key. There is no Second Thought server.</dd>
+            </div>
+            <div class="facts__row">
+              <dt>Keys</dt>
+              <dd>Kept in <code>chrome.storage.local</code>. Not synced, not logged, not included in error messages.</dd>
+            </div>
+            <div class="facts__row">
+              <dt>History</dt>
+              <dd>Off by default. When on, refined prompts stay in <code>chrome.storage.local</code> until you clear them.</dd>
+            </div>
+            <div class="facts__row">
+              <dt>Your original</dt>
+              <dd>Never discarded. If anything fails, the untouched message is sent exactly as you typed it.</dd>
+            </div>
+          </dl>
+
+          <div class="inline-actions">
+            <button class="st-btn st-btn--sm st-btn--danger" id="btn-wipe" type="button">Remove all saved keys &amp; history</button>
+            <span class="status-line" id="wipe-status" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="page-foot">
+      <span id="foot-ver"></span>
+      <span class="st-spacer"></span>
+      <a href="https://github.com/abhinavsinghparihar/second-thought" target="_blank" rel="noreferrer">Documentation</a>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <dialog class="modal" id="history-modal" aria-labelledby="history-title">
+    <div class="modal__head">
+      <h2 class="modal__title" id="history-title">History</h2>
+      <button class="icon-btn" id="btn-close-history" aria-label="Close">✕</button>
+    </div>
+    <div class="modal__body" id="history-body"></div>
+  </dialog>
+
+  </div>
+
+<script>
+/* ── minimal chrome extension API stub, in-memory ─────────────────────────── */
+(function () {
+  const sync = {
+    settings: {
+      enabled: true, autoIntercept: true, analysisEngine: 'ai',
+      aiProvider: 'gemini', aiModel: 'gemini-2.0-flash',
+      maxQuestions: 4, adaptiveFollowUp: true, historyEnabled: false,
+      excludedSites: [], customSites: [], theme: 'system', onboarded: true
+    }
+  };
+  const local = { 'apiKey:gemini': { key: 'AIza-DEMO-KEY-NOT-REAL-0000', savedAt: Date.now() - 86400000, hint: '0000' } };
+  const session = { analyses: {} };
+  const listeners = [];
+
+  const area = (store) => ({
+    get(keys, cb) {
+      const result = {};
+      if (keys === null || keys === undefined) Object.assign(result, store);
+      else if (typeof keys === 'string') { if (keys in store) result[keys] = store[keys]; }
+      else if (Array.isArray(keys)) keys.forEach((k) => { if (k in store) result[k] = store[k]; });
+      else Object.keys(keys).forEach((k) => { result[k] = k in store ? store[k] : keys[k]; });
+      const p = Promise.resolve(result);
+      if (cb) p.then(cb);
+      return p;
+    },
+    set(items, cb) {
+      Object.assign(store, items);
+      listeners.forEach((fn) => fn({}, 'sync'));
+      const p = Promise.resolve();
+      if (cb) p.then(cb);
+      return p;
+    },
+    remove(keys, cb) {
+      (Array.isArray(keys) ? keys : [keys]).forEach((k) => delete store[k]);
+      const p = Promise.resolve();
+      if (cb) p.then(cb);
+      return p;
+    }
+  });
+
+  const KEYS = ['gemini', 'openai', 'anthropic', 'openrouter', 'ollama'];
+  const PROVIDERS = {
+    gemini: { name: 'Google Gemini', defaultModel: 'gemini-2.0-flash', models: ['gemini-2.0-flash','gemini-2.5-flash','gemini-1.5-flash','gemini-1.5-pro'], keyUrl: 'https://aistudio.google.com/app/apikey', needsKey: true, transport: 'Your request text is sent from this browser directly to Google, never to us.' },
+    openai: { name: 'OpenAI', defaultModel: 'gpt-4o-mini', models: ['gpt-4o-mini','gpt-4o','gpt-4.1','gpt-4.1-mini','o4-mini'], keyUrl: 'https://platform.openai.com/api-keys', needsKey: true, transport: 'Your request text is sent from this browser directly to OpenAI, never to us.' },
+    anthropic: { name: 'Anthropic', defaultModel: 'claude-3-5-haiku-latest', models: ['claude-3-5-haiku-latest','claude-3-5-sonnet-latest'], keyUrl: 'https://console.anthropic.com/settings/keys', needsKey: true, transport: 'Your request text is sent from this browser directly to Anthropic, never to us.' },
+    openrouter: { name: 'OpenRouter', defaultModel: 'openai/gpt-4o-mini', models: ['openai/gpt-4o-mini','anthropic/claude-3.5-haiku'], keyUrl: 'https://openrouter.ai/keys', needsKey: true, transport: 'Your request text is sent from this browser directly to OpenRouter, never to us.' },
+    ollama: { name: 'Ollama (local)', defaultModel: 'llama3.1', models: ['llama3.1','llama3.2','qwen2.5'], needsKey: false, transport: 'Runs entirely on your machine. Nothing leaves your computer.' }
+  };
+
+  function engineStatus(s) {
+    if (s.analysisEngine !== 'ai') return { engine: 'local', aiReady: false, providerName: PROVIDERS[s.aiProvider].name, model: s.aiModel, reason: 'Local analysis is on-device and needs no API key.' };
+    const has = Boolean(local['apiKey:' + s.aiProvider]);
+    if (!has) return { engine: 'local', aiReady: false, providerName: PROVIDERS[s.aiProvider].name, model: s.aiModel, reason: 'No API key saved for ' + PROVIDERS[s.aiProvider].name + ' — using local analysis.' };
+    return { engine: 'ai', aiReady: true, providerName: PROVIDERS[s.aiProvider].name, model: s.aiModel };
+  }
+
+  window.chrome = {
+    runtime: {
+      id: 'preview',
+      getManifest: () => ({ version: '0.3.0' }),
+      openOptionsPage: () => { window.location.href = 'options.html'; },
+      onMessage: { addListener() {} },
+      sendMessage(message) {
+        const s = sync.settings;
+        switch (message.type) {
+          case 'st/settings-get': {
+            const keys = {};
+            KEYS.forEach((id) => {
+              const rec = local['apiKey:' + id];
+              keys[id] = rec ? { hasKey: true, savedAt: rec.savedAt, hint: rec.hint } : { hasKey: false, savedAt: 0, hint: '' };
+            });
+            return Promise.resolve({ settings: s, keys, engineStatus: engineStatus(s) });
+          }
+          case 'st/settings-set':
+            Object.assign(s, message.settings);
+            return Promise.resolve({ settings: s });
+          case 'st/key-set':
+            local['apiKey:' + message.provider] = { key: message.apiKey, savedAt: Date.now(), hint: message.apiKey.slice(-4) };
+            return Promise.resolve({ ok: true, hasKey: true, savedAt: Date.now(), hint: message.apiKey.slice(-4) });
+          case 'st/key-clear':
+            delete local['apiKey:' + message.provider];
+            return Promise.resolve({ ok: true, hasKey: false });
+          case 'st/key-clear-all':
+            KEYS.forEach((id) => delete local['apiKey:' + id]);
+            return Promise.resolve({ ok: true });
+          case 'st/test-connection':
+            return Promise.resolve({ ok: true, message: 'Connected to ' + PROVIDERS[message.provider].name + ' (' + message.model + ') in 412 ms.', latencyMs: 412 });
+          case 'st/history-list':
+            return Promise.resolve({ history: [
+              { id: 'h1', createdAt: Date.now() - 3600e3, providerId: 'software', original: 'Build me a really cool app.', refinedPrompt: '…', scoreBefore: 31, scoreAfter: 74, taskType: 'software', engine: 'ai' },
+              { id: 'h2', createdAt: Date.now() - 86400e3, providerId: 'website', original: 'I need a website for my bakery', refinedPrompt: '…', scoreBefore: 22, scoreAfter: 68, taskType: 'website', engine: 'local' }
+            ] });
+          case 'st/history-clear':
+            return Promise.resolve({ ok: true });
+          default:
+            return Promise.resolve({ ok: true });
+        }
+      }
+    },
+    storage: { sync: area(sync), local: area(local), session: area(session), onChanged: { addListener(fn) { listeners.push(fn); } } },
+    tabs: { query: () => Promise.resolve([{ id: 1, url: 'https://chatgpt.com/c/abc' }]), sendMessage: () => Promise.reject(new Error('preview')) },
+    scripting: { getRegisteredContentScripts: () => Promise.resolve([]), registerContentScripts: () => Promise.resolve(), unregisterContentScripts: () => Promise.resolve() },
+    permissions: { contains: () => Promise.resolve(false), request: () => Promise.resolve(true) }
+  };
+  window.matchMedia = window.matchMedia || (() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+})();
+</script>
+
+<script>"use strict";(()=>{var d=class extends Error{kind;retryable;status;constructor(t,n,s={}){super(n),this.name="AiError",this.kind=t,this.retryable=s.retryable??(t==="rate-limit"||t==="network"||t==="server"||t==="timeout"),this.status=s.status}};function Y(e,t){let n=e;return t&&t.length>=8&&(n=n.split(t).join("[redacted]")),n.replace(/\b(sk|pk|rk|api|key|token)[-_][A-Za-z0-9_-]{8,}/gi,"[redacted]").replace(/\bAIza[A-Za-z0-9_-]{20,}/g,"[redacted]").replace(/\bsk-[A-Za-z0-9_-]{10,}/g,"[redacted]").replace(/\b[A-Za-z0-9_-]{32,}\b/g,"[redacted]")}function W(e,t,n,s){let o=Y(Q(n),s).slice(0,200);if(e===401||e===403)return new d("auth",`${t} rejected the API key. Check the key in Settings.${o?` (${o})`:""}`,{status:e});if(e===404)return new d("model-not-found",`The model was not found on ${t}. Pick a different model in Settings.${o?` (${o})`:""}`,{status:e});if(e===429){let r=/quota|billing|credit/i.test(n);return new d(r?"quota":"rate-limit",r?`${t} reports no remaining quota for this key.`:`${t} is rate limiting \u2014 try again in a moment.`,{status:e,retryable:!r})}return e>=500?new d("server",`${t} had a server error (${e}). Try again shortly.`,{status:e}):new d("unknown",`${t} returned an error (${e}).${o?` ${o}`:""}`,{status:e})}function Q(e){try{let t=JSON.parse(e),n=t.error;if(typeof n=="string")return n;if(n?.message)return n.message;if(t.message)return t.message}catch{}return e.replace(/\s+/g," ").trim().slice(0,160)}async function y(e,t,n,s){let o=new AbortController,r=t.signal??void 0,a=()=>o.abort();r?.addEventListener("abort",a,{once:!0});let i=setTimeout(()=>o.abort(),n);try{return await fetch(e,{...t,signal:o.signal})}catch{throw o.signal.aborted?r?.aborted?new d("aborted","Request cancelled."):new d("timeout",`${s} took longer than ${Math.round(n/1e3)}s to respond.`):new d("network",`Could not reach ${s}. Check your connection, then retry.`)}finally{clearTimeout(i),r?.removeEventListener("abort",a)}}async function h(e,t){let n=await e.text().catch(()=>"");if(!e.ok)throw W(e.status,t,n);try{return JSON.parse(n)}catch{throw new d("bad-response",`${t} returned a response that was not valid JSON.`)}}function l(e,...t){let n=e;for(let s of t){if(n==null)return;if(typeof s=="number"){if(!Array.isArray(n))return;n=n[s]}else{if(typeof n!="object")return;n=n[s]}}return n}var Z=3e4,P={meta:{id:"anthropic",name:"Anthropic",defaultModel:"claude-3-5-haiku-latest",models:["claude-3-5-haiku-latest","claude-3-5-sonnet-latest","claude-sonnet-4-20250514","claude-3-7-sonnet-latest"],keyUrl:"https://console.anthropic.com/settings/keys",needsKey:!0,origin:"https://api.anthropic.com/*",transport:"Your request text is sent from this browser directly to Anthropic, never to us."},async complete(e,t,n){if(e.trim()==="")throw new d("no-key","Anthropic needs an API key. Add one in Settings.");let s=await y("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":e,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:t,max_tokens:n.maxTokens??1400,temperature:n.temperature??.2,system:n.system,messages:[{role:"user",content:n.user}]}),signal:n.signal},Z,"Anthropic"),o=await h(s,"Anthropic"),r=l(o,"stop_reason"),a=l(o,"content");if(!Array.isArray(a))throw new d("bad-response","Anthropic returned an unexpected response shape.");let i=a.map(m=>typeof l(m,"text")=="string"?String(l(m,"text")):"").join("");if(i.trim()==="")throw new d("bad-response","Anthropic returned an empty response.");if(r==="max_tokens")throw new d("bad-response","Anthropic hit the token limit before finishing. Try a smaller request or another model.");return i}};var V=3e4,M={meta:{id:"gemini",name:"Google Gemini",defaultModel:"gemini-2.0-flash",models:["gemini-2.0-flash","gemini-2.5-flash","gemini-1.5-flash","gemini-1.5-pro"],keyUrl:"https://aistudio.google.com/app/apikey",needsKey:!0,origin:"https://generativelanguage.googleapis.com/*",transport:"Your request text is sent from this browser directly to Google, never to us."},async complete(e,t,n){if(e.trim()==="")throw new d("no-key","Google Gemini needs an API key. Add one in Settings.");let s=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(t)}:generateContent`,o=await y(s,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":e},body:JSON.stringify({systemInstruction:{parts:[{text:n.system}]},contents:[{role:"user",parts:[{text:n.user}]}],generationConfig:{temperature:n.temperature??.2,maxOutputTokens:n.maxTokens??1400,...n.json?{responseMimeType:"application/json"}:{}}}),signal:n.signal},V,"Google Gemini"),r=await h(o,"Google Gemini"),a=l(r,"candidates",0);if(!a){let p=l(r,"promptFeedback","blockReason");throw new d("bad-response",typeof p=="string"?`Gemini blocked this request (${p}).`:"Gemini returned no candidates.")}let i=l(a,"content","parts"),m=Array.isArray(i)?i.map(p=>typeof l(p,"text")=="string"?String(l(p,"text")):"").join(""):"";if(m.trim()==="")throw new d("bad-response","Gemini returned an empty response.");return m}};var X=45e3,T={meta:{id:"ollama",name:"Ollama (local)",defaultModel:"llama3.1",models:["llama3.1","llama3.2","qwen2.5","mistral","phi3"],needsKey:!1,origin:"http://localhost:11434/*",transport:"Runs entirely on your machine. Nothing leaves your computer."},async complete(e,t,n){let s=await y("http://localhost:11434/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:t,stream:!1,options:{temperature:n.temperature??.2},messages:[{role:"system",content:n.system},{role:"user",content:n.user}]}),signal:n.signal},X,"Ollama"),o=await h(s,"Ollama"),r=l(o,"message","content");if(typeof r!="string"||r.trim()==="")throw new d("bad-response","Ollama returned an empty response. Is the model pulled?");return r}};var ee=3e4;function _(e){return{meta:{id:e.id,name:e.name,defaultModel:e.defaultModel,models:e.models,keyUrl:e.keyUrl,needsKey:!0,origin:e.origin,transport:`Your request text is sent from this browser directly to ${e.name}, never to us.`},async complete(t,n,s){if(t.trim()==="")throw new d("no-key",`${e.name} needs an API key. Add one in Settings.`);let o=await y(e.endpoint,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${t}`,...e.extraHeaders??{},...e.id==="openrouter"?{"X-Title":"Second Thought"}:{}},body:JSON.stringify({model:n,temperature:s.temperature??.2,max_tokens:s.maxTokens??1400,...s.json?{response_format:{type:"json_object"}}:{},messages:[{role:"system",content:s.system},{role:"user",content:s.user}]}),signal:s.signal},ee,e.name),r=await h(o,e.name),a=l(r,"choices",0,"message","content"),i=l(r,"choices",0,"message","refusal");if(typeof i=="string"&&i!=="")throw new d("bad-response",`${e.name} declined to answer this request.`);if(typeof a!="string"||a.trim()==="")throw new d("bad-response",`${e.name} returned an empty response.`);return a}}}var C=_({id:"openai",name:"OpenAI",endpoint:"https://api.openai.com/v1/chat/completions",defaultModel:"gpt-4o-mini",models:["gpt-4o-mini","gpt-4o","gpt-4.1","gpt-4.1-mini","o4-mini"],keyUrl:"https://platform.openai.com/api-keys",origin:"https://api.openai.com/*"}),B=_({id:"openrouter",name:"OpenRouter",endpoint:"https://openrouter.ai/api/v1/chat/completions",defaultModel:"openai/gpt-4o-mini",models:["openai/gpt-4o-mini","anthropic/claude-3.5-haiku","google/gemini-2.0-flash-001","meta-llama/llama-3.1-8b-instruct","qwen/qwen-2.5-72b-instruct"],keyUrl:"https://openrouter.ai/keys",origin:"https://openrouter.ai/*"});var $={gemini:M,openai:C,openrouter:B,anthropic:P,ollama:T},te=["gemini","openai","anthropic","openrouter","ollama"];function x(e){return $[e]?.meta}function k(){return te.map(e=>$[e].meta)}var ne={enabled:!0,autoIntercept:!0,analysisEngine:"local",aiProvider:"gemini",aiModel:"gemini-2.0-flash",maxQuestions:4,adaptiveFollowUp:!0,historyEnabled:!1,excludedSites:[],customSites:[],theme:"system",onboarded:!1};function L(e){return k().find(t=>t.id===e)?.defaultModel??ne.aiModel}function R(e={}){let{size:t=20,animated:n=!1,inverted:s=!1,label:o,className:r=""}=e,a=s?"#fff":"var(--st-mark-disc, #000)",i=s?"#000":"var(--st-mark-ink, #fff)",m=["st-mark",n?"st-mark--in":"",r].filter(Boolean).join(" "),p=o?`role="img" aria-label="${se(o)}"`:'aria-hidden="true" focusable="false"';return`<svg class="${m}" width="${t}" height="${t}" viewBox="0 0 64 64" ${p}
+    style="display:block;overflow:visible;flex:none">
+    <circle class="st-mark__disc" cx="32" cy="32" r="32" fill="${a}" />
+    <text class="st-mark__ess" x="11" y="46" fill="${i}"
+      font-family="Inter, 'Arial Black', sans-serif" font-size="34" font-weight="800">S</text>
+    <path class="st-mark__tee" d="M32 14h24M44 14v36" fill="none" stroke="${i}"
+      stroke-width="3.2" stroke-linecap="square" />
+  </svg>`}var K=`
+.st-mark__disc { transform-origin: 32px 32px; }
+.st-mark__ess { opacity: 0; }
+.st-mark__tee { stroke-dasharray: 80; stroke-dashoffset: 80; }
+
+.st-mark--in .st-mark__disc { animation: st-mark-pop 0.7s var(--st-ease) forwards; }
+.st-mark--in .st-mark__ess { animation: st-mark-fade 0.5s var(--st-ease) 0.35s forwards; }
+.st-mark--in .st-mark__tee { animation: st-mark-draw 0.7s var(--st-ease) 0.45s forwards; }
+
+@keyframes st-mark-pop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+@keyframes st-mark-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes st-mark-draw {
+  from { stroke-dashoffset: 80; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-mark__disc { transform: none; }
+  .st-mark__ess { opacity: 1; }
+  .st-mark__tee { stroke-dashoffset: 0; }
+  .st-mark--in .st-mark__disc,
+  .st-mark--in .st-mark__ess,
+  .st-mark--in .st-mark__tee { animation: none; }
+}
+`,$e="data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#000"/><text x="11" y="46" fill="#fff" font-family="Inter,Arial Black,sans-serif" font-size="34" font-weight="800">S</text><path d="M32 14h24M44 14v36" stroke="#fff" stroke-width="3.2" stroke-linecap="square" fill="none"/></svg>');function se(e){return e.replace(/[&<>"']/g,t=>t==="&"?"&amp;":t==="<"?"&lt;":t===">"?"&gt;":t==='"'?"&quot;":"&#39;")}var H=`
+:host, :root {
+  /* \u2500\u2500 surfaces \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-bg: #ffffff;
+  --st-bg-subtle: #fafafa;
+  --st-bg-raised: #ffffff;
+  --st-bg-inverse: #0a0a0a;
+  --st-overlay: rgba(0, 0, 0, 0.32);
+  --st-scrim: rgba(255, 255, 255, 0.72);
+
+  /* \u2500\u2500 ink \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-fg: #000000;
+  --st-fg-muted: #525252;
+  --st-fg-subtle: #737373;
+  --st-fg-faint: #a3a3a3;
+  --st-fg-inverse: #ffffff;
+  --st-fg-inverse-muted: #737373;
+
+  /* \u2500\u2500 lines \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-line: rgba(0, 0, 0, 0.1);
+  --st-line-strong: rgba(0, 0, 0, 0.22);
+  --st-line-inverse: rgba(255, 255, 255, 0.1);
+
+  /* \u2500\u2500 semantic (used sparingly; the brand is monochrome) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-ok: #1a7f37;
+  --st-ok-bg: #f0f9f2;
+  --st-warn: #8a5a12;
+  --st-warn-bg: #fdf7ed;
+  --st-danger: #b42318;
+  --st-danger-bg: #fef3f2;
+
+  /* \u2500\u2500 accent = ink \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-accent: #000000;
+  --st-accent-fg: #ffffff;
+  --st-focus: #000000;
+
+  /* \u2500\u2500 type \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-font: Inter, "Noto Sans", "Noto Sans Devanagari", "Noto Sans SC", "Noto Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --st-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --st-tracking-body: -0.02em;
+  --st-tracking-heading: -0.05em;
+  --st-tracking-label: 0.1em;
+
+  --st-text-xs: 11px;
+  --st-text-sm: 12px;
+  --st-text-base: 13px;
+  --st-text-md: 14px;
+  --st-text-lg: 16px;
+  --st-text-xl: 20px;
+  --st-text-2xl: 26px;
+
+  /* \u2500\u2500 geometry \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-radius-pill: 999px;
+  --st-radius-lg: 14px;
+  --st-radius-md: 10px;
+  --st-radius-sm: 7px;
+
+  --st-space-1: 4px;
+  --st-space-2: 8px;
+  --st-space-3: 12px;
+  --st-space-4: 16px;
+  --st-space-5: 20px;
+  --st-space-6: 24px;
+  --st-space-8: 32px;
+  --st-space-10: 40px;
+
+  /* \u2500\u2500 motion (matches the site's cubic-bezier(.16,1,.3,1)) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --st-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --st-dur-fast: 120ms;
+  --st-dur-base: 200ms;
+  --st-dur-slow: 420ms;
+
+  /* \u2500\u2500 elevation: hairline-first, never a heavy drop shadow \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px -8px rgba(0, 0, 0, 0.18);
+  --st-shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.06), 0 24px 60px -16px rgba(0, 0, 0, 0.28);
+}
+
+/* \u2500\u2500 dark theme \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+   The site's own dark surface is #0A0A0A with #737373 muted text; the dark
+   theme is that surface extended, not a separate palette. */
+:host([data-theme="dark"]), :root[data-theme="dark"] {
+  --st-bg: #0a0a0a;
+  --st-bg-subtle: #131313;
+  --st-bg-raised: #161616;
+  --st-bg-inverse: #ffffff;
+  --st-fg: #f5f5f5;
+  --st-fg-muted: #a3a3a3;
+  --st-fg-subtle: #8a8a8a;
+  --st-fg-faint: #666666;
+  --st-fg-inverse: #0a0a0a;
+  --st-fg-inverse-muted: #737373;
+  --st-line: rgba(255, 255, 255, 0.12);
+  --st-line-strong: rgba(255, 255, 255, 0.26);
+  --st-line-inverse: rgba(0, 0, 0, 0.1);
+  --st-accent: #ffffff;
+  --st-accent-fg: #0a0a0a;
+  --st-focus: #ffffff;
+  --st-ok: #4ac26b;
+  --st-ok-bg: rgba(26, 127, 55, 0.14);
+  --st-warn: #e3b341;
+  --st-warn-bg: rgba(138, 90, 18, 0.18);
+  --st-danger: #ff7b72;
+  --st-danger-bg: rgba(180, 35, 24, 0.16);
+  --st-scrim: rgba(10, 10, 10, 0.72);
+  --st-shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -8px rgba(0, 0, 0, 0.7);
+  --st-shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.6), 0 24px 60px -16px rgba(0, 0, 0, 0.8);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host, :root {
+    --st-dur-fast: 0ms;
+    --st-dur-base: 0ms;
+    --st-dur-slow: 0ms;
+  }
+}
+`,O=`
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--st-bg);
+  color: var(--st-fg);
+  font-family: var(--st-font);
+  font-size: var(--st-text-base);
+  letter-spacing: var(--st-tracking-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: var(--st-tracking-heading);
+  line-height: 1.05;
+}
+p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+
+/* Eyebrow label \u2014 the site's .mono.k */
+.st-eyebrow {
+  font-family: var(--st-font-mono);
+  font-size: var(--st-text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--st-tracking-label);
+  color: var(--st-fg-muted);
+  font-weight: 500;
+}
+
+.st-h1 { font-size: var(--st-text-2xl); font-weight: 800; letter-spacing: -0.06em; line-height: 0.92; }
+.st-h2 { font-size: var(--st-text-xl); font-weight: 700; letter-spacing: var(--st-tracking-heading); }
+.st-h3 { font-size: var(--st-text-lg); font-weight: 700; letter-spacing: -0.03em; }
+.st-muted { color: var(--st-fg-muted); }
+.st-subtle { color: var(--st-fg-subtle); font-size: var(--st-text-sm); line-height: 1.5; }
+
+/* Hairline \u2014 the site's structural device */
+.st-rule { height: 1px; background: var(--st-line); border: 0; margin: 0; }
+
+/* \u2500\u2500 buttons \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.st-btn {
+  appearance: none;
+  border: 1px solid var(--st-line-strong);
+  background: transparent;
+  color: var(--st-fg);
+  font-family: inherit;
+  font-size: var(--st-text-base);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border-radius: var(--st-radius-pill);
+  padding: 9px 18px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  transition: background var(--st-dur-fast) var(--st-ease),
+              color var(--st-dur-fast) var(--st-ease),
+              border-color var(--st-dur-fast) var(--st-ease),
+              opacity var(--st-dur-fast) var(--st-ease);
+  white-space: nowrap;
+}
+.st-btn:hover { background: var(--st-bg-subtle); border-color: var(--st-fg-faint); }
+.st-btn:active { transform: translateY(0.5px); }
+.st-btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+.st-btn:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
+
+.st-btn--primary {
+  background: var(--st-accent);
+  color: var(--st-accent-fg);
+  border-color: var(--st-accent);
+}
+.st-btn--primary:hover { background: var(--st-accent); opacity: 0.86; border-color: var(--st-accent); }
+
+.st-btn--ghost { border-color: transparent; color: var(--st-fg-muted); padding-inline: 10px; }
+.st-btn--ghost:hover { color: var(--st-fg); background: var(--st-bg-subtle); }
+
+.st-btn--danger { color: var(--st-danger); border-color: var(--st-line); }
+.st-btn--danger:hover { background: var(--st-danger-bg); border-color: var(--st-danger); }
+
+.st-btn--sm { font-size: var(--st-text-sm); padding: 6px 13px; min-height: 30px; }
+.st-btn--block { width: 100%; }
+
+/* \u2500\u2500 inputs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.st-input, .st-select, .st-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--st-text-base);
+  letter-spacing: var(--st-tracking-body);
+  color: var(--st-fg);
+  background: var(--st-bg);
+  border: 1px solid var(--st-line);
+  border-radius: var(--st-radius-md);
+  padding: 9px 11px;
+  transition: border-color var(--st-dur-fast) var(--st-ease), box-shadow var(--st-dur-fast) var(--st-ease);
+}
+.st-input::placeholder, .st-textarea::placeholder { color: var(--st-fg-faint); }
+.st-input:focus, .st-select:focus, .st-textarea:focus {
+  outline: none;
+  border-color: var(--st-fg);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+:root[data-theme="dark"] .st-input:focus,
+:root[data-theme="dark"] .st-select:focus,
+:root[data-theme="dark"] .st-textarea:focus,
+:host([data-theme="dark"]) .st-input:focus {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+.st-textarea { resize: vertical; line-height: 1.55; min-height: 80px; }
+.st-select { cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% + 1px), calc(100% - 11px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+}
+
+.st-field { display: flex; flex-direction: column; gap: 6px; }
+.st-field__label { font-size: var(--st-text-sm); font-weight: 650; color: var(--st-fg); letter-spacing: -0.01em; }
+.st-field__hint { font-size: var(--st-text-xs); color: var(--st-fg-subtle); line-height: 1.5; }
+
+/* \u2500\u2500 chips \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.st-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--st-text-xs);
+  font-weight: 650;
+  font-family: var(--st-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: var(--st-radius-pill);
+  border: 1px solid var(--st-line);
+  color: var(--st-fg-muted);
+  background: var(--st-bg);
+  white-space: nowrap;
+}
+.st-chip--solid { background: var(--st-accent); color: var(--st-accent-fg); border-color: var(--st-accent); }
+.st-chip--ok { color: var(--st-ok); border-color: color-mix(in srgb, var(--st-ok) 35%, transparent); background: var(--st-ok-bg); }
+.st-chip--warn { color: var(--st-warn); border-color: color-mix(in srgb, var(--st-warn) 35%, transparent); background: var(--st-warn-bg); }
+.st-chip--danger { color: var(--st-danger); border-color: color-mix(in srgb, var(--st-danger) 35%, transparent); background: var(--st-danger-bg); }
+
+.st-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+
+/* \u2500\u2500 utility \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.st-row { display: flex; align-items: center; gap: var(--st-space-2); }
+.st-spacer { flex: 1; }
+.st-stack { display: flex; flex-direction: column; }
+.st-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@keyframes st-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes st-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes st-spin { to { transform: rotate(360deg); } }
+@keyframes st-draw { to { stroke-dashoffset: 0; } }
+@keyframes st-pop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes st-scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  20% { opacity: 0.5; }
+  100% { transform: translateY(400%); opacity: 0; }
+}
+@keyframes st-pulse-line {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+`;var b="st-custom-sites";function z(e){let t=new Set;for(let n of e){let s=n.trim().toLowerCase().replace(/^https?:\/\//,"").replace(/\/.*$/,"");if(!(!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(s)&&s!=="localhost")){if(s==="localhost"||s.endsWith(".localhost")){t.add("http://localhost/*"),t.add("https://localhost/*");continue}t.add(`https://${s}/*`)}}return Array.from(t).sort()}var oe=[{name:"ChatGPT",host:"chatgpt.com",capability:"supported"},{name:"Claude",host:"claude.ai",capability:"partial"},{name:"Google Gemini",host:"gemini.google.com",capability:"partial"},{name:"Microsoft Copilot",host:"copilot.microsoft.com",capability:"unknown"}],c=null;async function re(){fe(),document.getElementById("brand-mark").innerHTML=R({size:40,animated:!0,label:"Second Thought"}),document.getElementById("version-label").textContent=`v${chrome.runtime.getManifest().version}`,document.getElementById("foot-ver").textContent="Second Thought \xB7 engine 0.3.0";let e=await f({type:"st/settings-get"});if(!e){v("Could not read settings. Reload the extension.",!0);return}c={settings:e.settings,keys:e.keys},F(e.settings.theme),ie(),de(),ce(),I()}function I(){if(!c)return;let e=c.settings;for(let p of Array.from(document.querySelectorAll(".segmented__opt")))p.setAttribute("aria-checked",String(p.dataset.engine===e.analysisEngine));let t=document.getElementById("engine-explain");t.textContent=e.analysisEngine==="ai"?"In AI mode the message you were about to send is sent from this browser directly to your provider to generate sharper questions. The final prompt is always assembled locally from your answers.":"Local mode runs the full requirement engine on-device: intent detection, gap analysis, question synthesis and prompt assembly. No key, no network, no cost.",document.getElementById("ai-config").setAttribute("aria-hidden",String(e.analysisEngine!=="ai"));let s=document.getElementById("st-provider");s.value=e.aiProvider;let o=document.getElementById("st-model");o.value=e.aiModel,ae(e.aiProvider);let r=x(e.aiProvider),a=document.getElementById("key-block");a.style.display=r&&!r.needsKey?"none":"";let i=document.getElementById("key-link");r?.keyUrl?(i.href=r.keyUrl,i.style.display=""):i.style.display="none",j();let m=document.getElementById("dataflow");m.textContent=r?r.transport:"Select a provider to see exactly where your request text travels.",A("st-enabled",e.enabled),A("st-intercept",e.autoIntercept),A("st-adaptive",e.adaptiveFollowUp),A("st-history",e.historyEnabled),document.getElementById("st-maxq").value=String(e.maxQuestions),document.getElementById("st-excluded").value=e.excludedSites.join(`
+`),document.getElementById("st-custom").value=e.customSites.join(`
+`),document.getElementById("st-theme").value=e.theme,U()}function U(){if(!c)return;let e=c.settings,t=x(e.aiProvider),n=c.keys[e.aiProvider],s=document.getElementById("status-engine");e.analysisEngine==="ai"?s.textContent=n?.hasKey||t?.needsKey===!1?"AI-powered":"Local (no key \u2014 AI unavailable)":s.textContent="Local (on-device)",document.getElementById("status-provider").textContent=t?`${t.name}`:"\u2014";let o=document.getElementById("status-key");t&&!t.needsKey?o.textContent="Not required":n?.hasKey?o.textContent=`Saved \xB7\xB7\xB7\xB7${n.hint}`:o.textContent="Not configured"}function j(){if(!c)return;let e=c.keys[c.settings.aiProvider],t=document.getElementById("key-state"),n=document.getElementById("st-apikey"),s=document.getElementById("btn-remove-key");if(e?.hasKey){let o=e.savedAt?new Date(e.savedAt).toLocaleDateString():"";t.textContent=`Saved \xB7\xB7\xB7\xB7${e.hint}${o?` \xB7 ${o}`:""}`,t.className="key-block__state key-block__state--saved",n.placeholder="Replace key\u2026 (leave blank to keep)",s.disabled=!1}else t.textContent="No key saved",t.className="key-block__state",n.placeholder="Paste your key\u2026",s.disabled=!0}function ae(e){let t=x(e),n=document.getElementById("model-list");n.textContent="";for(let s of t?.models??[]){let o=document.createElement("option");o.value=s,n.appendChild(o)}}function ie(){let e=document.getElementById("st-provider");e.textContent="";for(let t of k()){let n=document.createElement("option");n.value=t.id,n.textContent=t.needsKey?t.name:`${t.name} \u2014 no key`,e.appendChild(n)}}function de(){let e=document.getElementById("builtin-sites");e.textContent="";for(let t of oe){let n=document.createElement("div");n.className="site-list__row";let s=document.createElement("div"),o=document.createElement("div");o.className="site-list__name",o.textContent=t.name;let r=document.createElement("div");r.className="site-list__host",r.textContent=t.host,s.append(o,r);let a=document.createElement("span"),i=t.capability;a.className=`st-chip ${i==="supported"?"st-chip--ok":i==="partial"?"st-chip--warn":""}`,a.textContent=i==="supported"?"Supported":i==="partial"?"Beta":"Experimental",n.append(s,a),e.appendChild(n)}}function ce(){let e=(t,n,s)=>{document.getElementById(t)?.addEventListener(n,s)};for(let t of Array.from(document.querySelectorAll(".segmented__opt")))t.addEventListener("click",()=>{g({analysisEngine:t.dataset.engine})});e("st-enabled","change",()=>void g({enabled:w("st-enabled")})),e("st-intercept","change",()=>void g({autoIntercept:w("st-intercept")})),e("st-adaptive","change",()=>void g({adaptiveFollowUp:w("st-adaptive")})),e("st-history","change",()=>void g({historyEnabled:w("st-history")})),e("st-maxq","change",()=>void g({maxQuestions:Number(document.getElementById("st-maxq").value)})),e("st-theme","change",()=>{let t=document.getElementById("st-theme").value;F(t),g({theme:t})}),e("st-provider","change",()=>{let t=document.getElementById("st-provider").value,n=L(t);g({aiProvider:t,aiModel:n})}),e("st-model","change",()=>{g({aiModel:document.getElementById("st-model").value.trim()})}),e("st-excluded","change",()=>{g({excludedSites:q(document.getElementById("st-excluded").value)})}),e("btn-toggle-key","click",()=>{let t=document.getElementById("st-apikey"),n=document.getElementById("btn-toggle-key"),s=t.type==="password";t.type=s?"text":"password",n.textContent=s?"Hide":"Show",n.setAttribute("aria-label",s?"Hide key":"Show key")}),e("btn-save-key","click",()=>void N()),e("st-apikey","keydown",t=>{t.key==="Enter"&&N()}),e("btn-remove-key","click",()=>void le()),e("btn-test","click",()=>void D()),e("btn-history","click",()=>void G()),e("btn-close-history","click",()=>{document.getElementById("history-modal")?.removeAttribute("open"),document.getElementById("history-modal")?.close()}),e("btn-clear-history","click",()=>void ge()),e("btn-apply-custom","click",()=>void me()),e("btn-wipe","click",()=>void ue())}async function g(e){if(!c)return;let t=c.settings;c.settings={...c.settings,...e},I();let n=await f({type:"st/settings-set",settings:e});if(!n?.settings){c.settings=t,I(),v("Could not save that setting.",!0);return}c.settings=n.settings,e.aiProvider&&await E()}async function E(){let e=await f({type:"st/settings-get"});e&&c&&(c.keys=e.keys,j(),U())}async function N(){if(!c)return;let e=document.getElementById("st-apikey"),t=e.value.trim();if(t===""){v("Paste a key first.");return}let n=c.settings.aiProvider,s=document.getElementById("btn-save-key");s.disabled=!0,u("test-status","","");try{await f({type:"st/key-set",provider:n,apiKey:t}),e.value="",e.type="password",document.getElementById("btn-toggle-key").textContent="Show",await E(),v("Key saved on this device."),await D(!0)}finally{s.disabled=!1}}async function le(){if(!c)return;let e=c.settings.aiProvider;await f({type:"st/key-clear",provider:e}),await E(),u("test-status","Key removed from this device.","ok"),v("Key removed.")}async function D(e=!1){if(!c)return;let t=document.getElementById("btn-test"),n=document.getElementById("st-apikey");t.disabled=!0,u("test-status",e?"Key saved \u2014 testing\u2026":"Testing\u2026","");try{let s=await f({type:"st/test-connection",provider:c.settings.aiProvider,model:c.settings.aiModel,apiKey:n.value.trim()});if(!s){u("test-status","No response from the extension background. Reload the extension.","err");return}u("test-status",s.message,s.ok?"ok":"err")}catch{u("test-status","Connection test failed unexpectedly.","err")}finally{t.disabled=!1}}async function me(){let e=document.getElementById("custom-status"),t=document.getElementById("btn-apply-custom"),n=document.getElementById("st-custom").value,s=q(n),o=z(s);t.disabled=!0;try{await g({customSites:s});let a=(await chrome.scripting.getRegisteredContentScripts().catch(()=>[])).some(J=>J.id===b);if(o.length===0){a&&await chrome.scripting.unregisterContentScripts({ids:[b]}),u("custom-status","Saved \u2014 custom sites cleared.","ok");return}let i={permissions:["scripting"],origins:o};if(!(await chrome.permissions.contains({origins:o})||await chrome.permissions.request(i))){u("custom-status","Permission denied \u2014 those sites stay inactive.","err");return}a&&await chrome.scripting.unregisterContentScripts({ids:[b]}),await chrome.scripting.registerContentScripts([{id:b,js:["content.js"],matches:o,runAt:"document_idle",persistAcrossSessions:!0}]),u("custom-status",`Active on ${s.length} site${s.length===1?"":"s"} \u2014 refresh the tab once.`,"ok")}catch(r){let a=r instanceof Error?r.message:"Unknown error";u("custom-status",`Could not apply: ${a.slice(0,120)}`,"err")}finally{t.disabled=!1}}async function G(){let e=document.getElementById("history-modal"),t=document.getElementById("history-body");t.textContent="";let s=(await f({type:"st/history-list"}))?.history??[];if(s.length===0){let o=document.createElement("div");o.className="empty",o.textContent=c?.settings.historyEnabled?"No refined prompts yet. They will appear here after your first refinement.":"History is off. Turn on \u201CKeep prompt history\u201D above to record refined prompts on this device.",t.appendChild(o)}else for(let o of s.slice(0,50))t.appendChild(pe(o));typeof e.showModal=="function"?e.showModal():e.setAttribute("open","")}function pe(e){let t=document.createElement("div");t.className="history-item";let n=document.createElement("div");n.className="history-item__meta";let s=new Date(e.createdAt).toLocaleString();for(let a of[s,e.taskType,e.engine]){let i=document.createElement("span");i.textContent=a,n.appendChild(i)}let o=document.createElement("span");o.className="history-item__score",o.textContent=`${e.scoreBefore}% \u2192 ${e.scoreAfter}%`,n.appendChild(o);let r=document.createElement("div");return r.className="history-item__text",r.textContent=e.original,t.append(n,r),t}async function ge(){await f({type:"st/history-clear"}),v("History cleared."),document.getElementById("history-modal").open&&await G()}async function ue(){await f({type:"st/key-clear-all"}),await f({type:"st/history-clear"}),await E(),u("wipe-status","All saved keys and history removed from this device.","ok"),v("Everything removed.")}function f(e){return chrome.runtime.sendMessage(e).catch(()=>{})}function q(e){return Array.from(new Set(e.split(/[\n,]/).map(t=>t.trim().toLowerCase().replace(/^https?:\/\//,"").replace(/\/.*$/,"")).filter(t=>t!==""&&(t==="localhost"||/^[a-z0-9.-]+\.[a-z]{2,}$/.test(t)))))}function w(e){return document.getElementById(e).checked}function A(e,t){let n=document.getElementById(e);n&&(n.checked=t)}function u(e,t,n){let s=document.getElementById(e);s&&(s.textContent=t,s.className=`status-line${n==="ok"?" status-line--ok":n==="err"?" status-line--err":""}`)}function F(e){let t=e==="system"?window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light":e;document.documentElement.dataset.theme=t,document.getElementById("shell")?.setAttribute("data-theme",t)}var S;function v(e,t=!1){let n=document.getElementById("toast");n&&(n.textContent=e,n.className=`toast show${t?" toast--danger":""}`,S&&window.clearTimeout(S),S=window.setTimeout(()=>{n.className="toast"},3600))}function fe(){let e=document.createElement("style");e.textContent=`${H}
+${O}
+${K}`,document.head.prepend(e)}document.addEventListener("DOMContentLoaded",()=>void re());})();
+</script>
+</body>
+</html>

@@ -1,77 +1,106 @@
-import { isVisible, q, readInputText, writeInputText, type ProviderAdapter } from './types';
+import type { ProviderCapability } from '../shared/types';
+import type { ProviderAdapter } from './types';
+import {
+  dispatchEnter,
+  largestVisible,
+  writeText,
+  type AdapterSpec,
+} from './base';
+import { isVisible, q } from './types';
 
 /**
- * Generic adapter for user-added sites (capability: unknown).
- * Heuristic: the largest visible contenteditable/textarea is the prompt
- * input; the nearest following submit-ish button is send. This is
- * intentionally conservative — when in doubt it returns null and
- * Second Thought simply stays passive on that site.
+ * Generic adapter for user-added sites.
+ *
+ * Heuristic by design: the largest visible editor is the composer, and the
+ * nearest submit-ish control is send. It is conservative — when in doubt it
+ * returns null and Second Thought simply stays passive on that site.
  */
 export function createGenericAdapter(id: string, hostname: string): ProviderAdapter {
-  return {
+  const spec: AdapterSpec = {
     id,
     name: hostname,
     capability: 'unknown',
     homepage: `https://${hostname}`,
+    hosts: [hostname],
+    matchSubdomains: true,
+    inputSelectors: [],
+    sendSelectors: [],
+    verification: 'Heuristic. Not tested against this site.',
+  };
 
-    matches(h: string): boolean {
-      return h === hostname || h.endsWith(`.${hostname}`);
+  return {
+    id: spec.id,
+    name: spec.name,
+    capability: spec.capability as ProviderCapability,
+    homepage: spec.homepage,
+
+    matches(host: string): boolean {
+      const clean = host.toLowerCase();
+      return clean === hostname || clean.endsWith(`.${hostname}`);
     },
 
     findInput(): HTMLElement | null {
-      if (typeof document === 'undefined') return null;
-      const editors = Array.from(
-        document.querySelectorAll<HTMLElement>(
-          'textarea, div[contenteditable="true"], [role="textbox"]',
-        ),
-      ).filter(isVisible);
-      let best: HTMLElement | null = null;
-      let bestArea = 0;
-      for (const el of editors) {
-        const rect = el.getBoundingClientRect();
-        const area = rect.width * rect.height;
-        if (area > bestArea) {
-          best = el;
-          bestArea = area;
-        }
+      try {
+        if (typeof document === 'undefined') return null;
+        return largestVisible(['textarea', 'div[contenteditable="true"]', '[role="textbox"]']);
+      } catch {
+        return null;
       }
-      return best;
     },
 
     findSendButton(): HTMLElement | null {
-      const input = this.findInput();
-      if (!input) return null;
-      const form = input.closest('form');
-      if (form) {
-        const submit = q<HTMLButtonElement>('button[type="submit"], button[aria-label*="send" i]', form);
-        if (submit) return submit;
+      try {
+        const input = this.findInput();
+        if (!input) return null;
+
+        const form = input.closest('form');
+        if (form) {
+          const submit = q<HTMLElement>('button[type="submit"], button[aria-label*="send" i]', form);
+          if (submit && isVisible(submit)) return submit;
+        }
+
+        // Look outwards through a few ancestors for a nearby send control.
+        let scope: HTMLElement | null = input.parentElement;
+        for (let depth = 0; depth < 4 && scope; depth += 1) {
+          const buttons = Array.from(scope.querySelectorAll<HTMLElement>('button')).filter((button) => {
+            if (!isVisible(button)) return false;
+            const label = button.getAttribute('aria-label') ?? button.textContent ?? '';
+            const isSubmit = button instanceof HTMLButtonElement && button.type === 'submit';
+            return isSubmit || /send|submit/i.test(label);
+          });
+          if (buttons.length > 0) return buttons[buttons.length - 1] ?? null;
+          scope = scope.parentElement;
+        }
+        return null;
+      } catch {
+        return null;
       }
-      // Look for a small sibling button near the input.
-      const container = input.closest('div');
-      if (container) {
-        const btns = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).filter(
-          (b) => isVisible(b) && (b.getAttribute('aria-label')?.match(/send|submit/i) || b.type === 'submit'),
-        );
-        if (btns.length > 0) return btns[btns.length - 1]!;
-      }
-      return null;
     },
 
     getText(input: HTMLElement): string {
-      return readInputText(input);
+      if (input instanceof HTMLTextAreaElement || input instanceof HTMLInputElement) return input.value;
+      return input.innerText ?? input.textContent ?? '';
     },
 
     setText(input: HTMLElement, text: string): boolean {
-      return writeInputText(input, text);
+      return writeText(input, text);
     },
 
     submit(): boolean {
-      const btn = this.findSendButton();
-      if (btn) {
-        (btn as HTMLButtonElement).click();
+      try {
+        const button = this.findSendButton();
+        if (button && !(button as HTMLButtonElement).disabled) {
+          button.click();
+          return true;
+        }
+        const input = this.findInput();
+        if (!input) return false;
+        input.focus();
+        dispatchEnter(input);
         return true;
+      } catch {
+        return false;
       }
-      return false;
     },
   };
 }

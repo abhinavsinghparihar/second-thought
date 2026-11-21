@@ -1,0 +1,34 @@
+{
+  "name": "second-thought",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Second Thought \u2014 an intelligent requirement-discovery layer between you and AI.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "extension"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build --workspace @second-thought/extension",
+    "package": "npm run package --workspace @second-thought/extension",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run typecheck && npm run test && npm run build",
+    "site": "npx --yes serve site -l 4173",
+    "shots": "python3 scratch/tools/shot.py && python3 scratch/tools/shot-flow.py"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.24.0",
+    "jsdom": "^25.0.1",
+    "playwright": "^1.49.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

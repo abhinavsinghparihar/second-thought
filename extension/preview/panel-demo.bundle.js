@@ -1,0 +1,4824 @@
+"use strict";
+(() => {
+  // packages/core/src/classify.ts
+  var TASK_TYPES = [
+    "software",
+    "website",
+    "mobile",
+    "coding",
+    "writing",
+    "research",
+    "image",
+    "business",
+    "education",
+    "general"
+  ];
+  var SIGNALS = {
+    website: [
+      { id: "site-build", re: /\b(build|create|make|design|develop|redesign|rework|launch)\b[^.?!]{0,40}\b(website|web ?site|landing page|homepage|web ?page|portfolio site|marketing site|blog site|store|shop|e-?commerce site|web ?app)\b/i, weight: 3.6 },
+      { id: "site-noun", re: /\b(landing page|homepage|webshop|web site|website|webapp|web app|saas site)\b/i, weight: 1.8 },
+      { id: "site-tech", re: /\b(next\.?js|nuxt|astro|gatsby|wordpress|shopify|webflow|framer|tailwind|html|css)\b/i, weight: 0.9 },
+      { id: "site-hindi", re: /\b(website|site|web ?page)\b[^.?!]{0,24}\b(banao|bana do|banana hai|banani hai|chahiye)\b/i, weight: 3.2 },
+      { id: "site-seo", re: /\b(seo|responsive|pages?|navigation|hero section|footer|cta|forms?)\b/i, weight: 0.7 }
+    ],
+    mobile: [
+      { id: "mobile-build", re: /\b(build|create|make|develop|design)\b[^.?!]{0,40}\b(android|ios|iphone|ipad|mobile ?app|mobile application|flutter|react native|swiftui|kotlin)\b/i, weight: 3.8 },
+      { id: "mobile-noun", re: /\b(android app|ios app|iphone app|mobile app|mobile application|react native|flutter app|swiftui|jetpack compose)\b/i, weight: 2.2 },
+      { id: "mobile-store", re: /\b(app store|play store|apk|testflight|push notifications?)\b/i, weight: 1.4 },
+      { id: "mobile-hindi", re: /\b(android|ios|mobile)\b[^.?!]{0,24}\b(app|application)\b[^.?!]{0,18}\b(banao|bana do|banana hai|chahiye)\b/i, weight: 3.2 }
+    ],
+    software: [
+      { id: "sw-app-build", re: /\b(?:build|make|create|develop|design|ship|launch)\b[^.?!]{0,40}\b(app|application|tool|platform|dashboard|system|product)\b/i, weight: 2.8 },
+      { id: "sw-build", re: /\b(build|develop|create|make|implement|architect|ship|write)\b[^.?!]{0,44}\b(api|backend|back-end|microservice|service|cli|library|sdk|plugin|extension|bot|daemon|pipeline|database|schema|system|platform|dashboard|tool)\b/i, weight: 3.2 },
+      { id: "sw-noun", re: /\b(backend|back-end|microservice|rest api|graphql|sdk|library|command[- ]line|cli tool|chrome extension|browser extension|bot|cron job|etl|webhook)\b/i, weight: 2 },
+      { id: "sw-arch", re: /\b(architecture|refactor|scalab\w+|concurren\w+|queue|worker|cache|deploy|docker|kubernetes|ci\/cd|unit tests?)\b/i, weight: 1.3 },
+      { id: "sw-automation", re: /\b(automate|automation|script|scraper|crawler|integration|sync)\b/i, weight: 1 }
+    ],
+    coding: [
+      { id: "code-debug", re: /\b(debug|fix|why (does|is|do)|not working|throws? (an? )?(error|exception)|stack ?trace|traceback|error message|fails?|crash\w*|broken)\b/i, weight: 3 },
+      { id: "code-language", re: /\b(python|javascript|typescript|java|kotlin|swift|golang|rust|c\+\+|c#|php|ruby|scala|dart|sql|bash|powershell|r)\b/i, weight: 1.6 },
+      { id: "code-explain", re: /\b(explain (this|the) (code|function|error|regex)|what does (this|the) (code|function)|time complexity|big[- ]o|refactor|optimi[sz]e|unit test|regex for|parse this)\b/i, weight: 2.6 },
+      { id: "code-snippet", re: /```|^\s*(import|const|let|function|def|class|public|private|#include|package)\b/m, weight: 2.4 },
+      { id: "code-leetcode", re: /\b(algorithm|data structure|leetcode|dynamic programming|recursion|sorting|binary search)\b/i, weight: 1.8 }
+    ],
+    writing: [
+      { id: "write-content", re: /\b(write|draft|compose|rewrite|edit|proofread|polish|summari[sz]e|paraphrase)\b[^.?!]{0,44}\b(article|blog|blog post|essay|story|poem|post|linkedin post|caption|copy|newsletter|script|speech|bio|review|guide|documentation|readme|thesis|paragraph|email|e-?mail|letter|cover letter|press release|case study|whitepaper|proposal|report)\b/i, weight: 3.4 },
+      { id: "write-noun", re: /\b(blog post|linkedin post|cover letter|press release|case study|whitepaper|newsletter|product description|landing copy|ad copy|tagline|readme|documentation|docstring|changelog)\b/i, weight: 2 },
+      { id: "write-hindi", re: /\b(blog|article|email|e-?mail|letter|essay|caption|poem|story|post)\b[^.?!]{0,24}\b(likho|likh do|likhna hai|banao|bana do|chahiye)\b/i, weight: 3.2 },
+      { id: "write-docs", re: /\b(api ?docs?|documentation|docstrings?|technical writing|style guide|release notes)\b/i, weight: 2.2 },
+      { id: "write-tone", re: /\b(tone|voice|audience|headline|hook|intro|outro)\b/i, weight: 0.5 },
+      // Short creative forms are writing requests even without "write <noun>"
+      // adjacency: "write a haiku about rain", "a limerick for my brother".
+      { id: "write-form", re: /\b(haiku|limerick|sonnet|ode|acrostic|taglines?|slogan|blurb|bios?|poem|poetry|verse|rhyme|jingle|pitch|toast|eulogy|vows?)\b/i, weight: 2.6 },
+      // Translation is a writing task with its own constraints (source, target,
+      // register); left as `general` it produced generic goal/context questions.
+      { id: "write-translate", re: /\b(translate|translation|localise|localize|transliterate)\b/i, weight: 3 }
+    ],
+    research: [
+      { id: "research-verbs", re: /\b(research|investigate|analy[sz]e|compare|evaluate|assess|benchmark|survey)\b[^.?!]{0,54}\b(options|tools|products|vendors|market|competitors|alternatives|trends|landscape|literature|papers|evidence|providers|platforms|solutions|services|frameworks|pricing)\b/i, weight: 3.4 },
+      { id: "research-compare", re: /\b(pros and cons|trade-?offs?|versus|vs\.?|comparison|which (one )?is better|recommend a|best \w+ for)\b/i, weight: 2.2 },
+      { id: "research-market", re: /\b(market (research|analysis|size|trends?)|state of|industry report|competitive analysis|due diligence)\b/i, weight: 2.6 },
+      { id: "research-sources", re: /\b(sources?|citations?|references|peer[- ]reviewed|studies|papers|data on)\b/i, weight: 1.6 }
+    ],
+    image: [
+      { id: "image-verbs", re: /\b(generate|create|draw|design|make|render|illustrate|paint|sketch)\b[^.?!]{0,32}\b(image|picture|photo|illustration|logo|icon|poster|banner|artwork|avatar|wallpaper|mockup|sketch|painting|thumbnail|scene|portrait|sticker|badge)\b/i, weight: 3.4 },
+      { id: "image-noun", re: /\b(logo|icon|poster|banner|avatar|wallpaper|thumbnail|illustration|photorealistic|watercolour|watercolor|pixel art|3d render|oil painting|line art|flat design|isometric|cinematic)\b/i, weight: 2.2 },
+      { id: "image-tool", re: /\b(midjourney|dall-?e|stable diffusion|flux|sdxl|imagen|nano banana)\b/i, weight: 1.8 },
+      { id: "image-camera", re: /\b(camera angle|shallow depth of field|bokeh|wide shot|close-?up|golden hour|aspect ratio|16:9|9:16|1:1)\b/i, weight: 1.4 }
+    ],
+    business: [
+      { id: "biz-plan", re: /\b(business plan|go[- ]to[- ]market|gtm|monetis\w+|monetiz\w+|pricing strategy|revenue model|business model|pitch deck|investor deck)\b/i, weight: 3.4 },
+      { id: "biz-strategy", re: /\b(strategy|strategic|launch plan|growth plan|roadmap|positioning|value proposition|target market|customer segment)\b/i, weight: 2.2 },
+      { id: "biz-finance", re: /\b(revenue|profit|margin|burn rate|runway|forecast|break[- ]even|arr|mrr|cac|ltv)\b/i, weight: 1.8 },
+      { id: "biz-startup", re: /\b(startup|saas business|company|venture|fundrais\w+|seed round|investors?)\b/i, weight: 1.2 }
+    ],
+    education: [
+      // "explain X" and "teach me X" are teaching requests. Bare "what is X" /
+      // "how does X work" stay low-weight: those are usually lookups and the
+      // direct-question pass-through should win, not a clarification form.
+      { id: "edu-teach", re: /\b(explain|teach me|help me understand|walk me through|eli5|explain like i'?m|break down how)\b/i, weight: 2.4 },
+      { id: "edu-lookup", re: /\b(what is|what are|how does|how do|why does|why is|difference between|meaning of|define)\b/i, weight: 1.2 },
+      { id: "edu-plan", re: /\b(learn|study|master|practice|course|curriculum|tutorial|roadmap to learn|from scratch|beginner|syllabus|revision)\b/i, weight: 2 },
+      { id: "edu-exam", re: /\b(exam|test prep|interview prep|questions to practice|homework|assignment|lesson plan)\b/i, weight: 2.4 }
+    ]
+  };
+  function classifyTask(text, options = {}) {
+    const t = squashForMatch(text);
+    const scores = /* @__PURE__ */ new Map();
+    const signals = [];
+    for (const [taskType2, list] of Object.entries(SIGNALS)) {
+      let score = 0;
+      for (const signal of list) {
+        if (signal.re.test(t)) {
+          score += signal.weight;
+          signals.push(signal.id);
+        }
+      }
+      if (score > 0) scores.set(taskType2, score);
+    }
+    if (scores.size === 0) {
+      return { taskType: "general", confidence: 0.2, signals: [] };
+    }
+    const ranked = [...scores.entries()].sort((a, b) => b[1] - a[1] || rank(a[0]) - rank(b[0]));
+    const [winner, topScore] = ranked[0];
+    const runnerUp = ranked[1]?.[1] ?? 0;
+    let taskType = winner;
+    const has = (id) => signals.includes(id);
+    if (taskType === "website" && (has("mobile-build") || has("mobile-noun"))) taskType = "mobile";
+    if (taskType === "software" && (has("site-build") || has("site-noun")) && !has("sw-noun")) taskType = "website";
+    if (taskType === "software" && has("mobile-build")) taskType = "mobile";
+    if (taskType === "coding" && (has("site-build") || has("mobile-build") || has("sw-build"))) {
+      taskType = has("mobile-build") ? "mobile" : has("site-build") ? "website" : "software";
+    }
+    if (taskType === "general" && options.prefersTechnical) taskType = "coding";
+    if (taskType === "general" && has("sw-app-build") && !has("mobile-build") && !has("site-build")) {
+      taskType = "software";
+    }
+    const margin = topScore - runnerUp;
+    const confidence = clamp01(0.35 + Math.min(1, topScore / 6) * 0.4 + Math.min(1, margin / 4) * 0.25);
+    return {
+      taskType,
+      confidence: round2(confidence),
+      signals: signals.filter((s) => s !== "")
+    };
+  }
+  var TASK_LABELS = {
+    software: "Software development",
+    website: "Website development",
+    mobile: "Mobile app development",
+    coding: "Coding & debugging",
+    writing: "Writing & documentation",
+    research: "Research & analysis",
+    image: "Image generation",
+    business: "Business planning",
+    education: "Education & learning",
+    general: "General request"
+  };
+  function taskLabel(taskType) {
+    return TASK_LABELS[taskType] ?? TASK_LABELS.general;
+  }
+  var TASK_SHORT_LABELS = {
+    software: "Software",
+    website: "Website",
+    mobile: "Mobile app",
+    coding: "Coding",
+    writing: "Writing",
+    research: "Research",
+    image: "Image",
+    business: "Business",
+    education: "Learning",
+    general: "General"
+  };
+  function taskShortLabel(taskType) {
+    return TASK_SHORT_LABELS[taskType] ?? TASK_SHORT_LABELS.general;
+  }
+  function squashForMatch(text) {
+    return text.replace(/\s+/g, " ").trim();
+  }
+  function rank(taskType) {
+    return TASK_TYPES.indexOf(taskType);
+  }
+  function clamp01(n) {
+    return Math.min(1, Math.max(0, n));
+  }
+  function round2(n) {
+    return Math.round(n * 100) / 100;
+  }
+
+  // packages/core/src/schema.ts
+  var COMMON = [
+    // Constraints stated in the user's own words ("no jargon", "must be offline")
+    // belong to every category, not just writing.
+    { id: "must_avoid", label: "Explicitly excluded", weight: 0.3, kind: "text", optional: true },
+    // Low weight on purpose: output format is a *nicety* for most requests and a
+    // requirement only for some. Asking it by default was noise — a haiku does
+    // not need an "output format" question. Categories that genuinely care set a
+    // higher weight locally (see WRITING / RESEARCH).
+    { id: "output_format", label: "Output format", weight: 0.25, kind: "single", optional: true },
+    { id: "deadline", label: "Deadline", weight: 0.15, kind: "single", optional: true }
+  ];
+  var WEBSITE = [
+    { id: "purpose", label: "Website purpose", weight: 0.95, kind: "single" },
+    { id: "site_type", label: "Website type", weight: 0.7, kind: "single" },
+    { id: "audience", label: "Target audience", weight: 0.8, kind: "single" },
+    { id: "pages", label: "Required pages", weight: 0.75, kind: "multi" },
+    { id: "design_direction", label: "Design direction", weight: 0.6, kind: "single" },
+    { id: "features", label: "Features", weight: 0.85, kind: "multi" },
+    { id: "tech_stack", label: "Technology preference", weight: 0.55, kind: "single" },
+    { id: "backend", label: "Backend requirements", weight: 0.7, kind: "single" },
+    { id: "auth", label: "Authentication", weight: 0.55, kind: "single", condition: { slot: "backend", equals: ["dynamic", "unsure"] } },
+    { id: "database", label: "Database", weight: 0.5, kind: "single", condition: { slot: "backend", equals: ["dynamic", "unsure"] } },
+    { id: "deployment", label: "Deployment", weight: 0.4, kind: "single", optional: true },
+    { id: "content", label: "Content readiness", weight: 0.45, kind: "single", optional: true },
+    ...COMMON
+  ];
+  var SOFTWARE = [
+    { id: "purpose", label: "What it does", weight: 0.95, kind: "text" },
+    { id: "platform", label: "Runtime / platform", weight: 0.7, kind: "single" },
+    { id: "features", label: "Core functionality", weight: 0.9, kind: "multi" },
+    { id: "language", label: "Language", weight: 0.6, kind: "single" },
+    { id: "framework", label: "Framework / stack", weight: 0.5, kind: "single" },
+    { id: "constraints", label: "Constraints", weight: 0.6, kind: "multi" },
+    { id: "interfaces", label: "Interfaces", weight: 0.55, kind: "multi", condition: { slot: "platform", equals: ["server", "backend", "api"] } },
+    { id: "data_storage", label: "Data storage", weight: 0.55, kind: "single" },
+    { id: "scale", label: "Scale expectations", weight: 0.4, kind: "single", optional: true },
+    { id: "output_shape", label: "Deliverable form", weight: 0.55, kind: "single" },
+    { id: "testing", label: "Tests expected", weight: 0.35, kind: "single", optional: true },
+    ...COMMON
+  ];
+  var MOBILE = [
+    { id: "purpose", label: "What the app does", weight: 0.95, kind: "text" },
+    { id: "mobile_os", label: "Mobile platform", weight: 0.85, kind: "single" },
+    { id: "features", label: "Core features", weight: 0.9, kind: "multi" },
+    { id: "audience", label: "Target users", weight: 0.7, kind: "single" },
+    { id: "framework", label: "Framework", weight: 0.55, kind: "single" },
+    { id: "backend", label: "Backend / sync", weight: 0.6, kind: "single" },
+    { id: "auth", label: "Authentication", weight: 0.5, kind: "single", condition: { slot: "backend", equals: ["dynamic", "unsure"] } },
+    { id: "notifications", label: "Notifications", weight: 0.35, kind: "single", optional: true },
+    { id: "store", label: "Distribution", weight: 0.35, kind: "single", optional: true },
+    { id: "design_direction", label: "Design direction", weight: 0.5, kind: "single" },
+    ...COMMON
+  ];
+  var CODING = [
+    { id: "goal", label: "What you need", weight: 0.9, kind: "single" },
+    { id: "problem", label: "The problem / code", weight: 0.85, kind: "text" },
+    { id: "language", label: "Language / runtime", weight: 0.8, kind: "single" },
+    { id: "context", label: "Codebase context", weight: 0.6, kind: "single" },
+    { id: "error", label: "Error details", weight: 0.7, kind: "text", condition: { slot: "goal", equals: ["debug", "fix", "review"] } },
+    { id: "constraints", label: "Constraints", weight: 0.5, kind: "multi" },
+    { id: "output_shape", label: "Answer form", weight: 0.5, kind: "single" },
+    { id: "level", label: "Explanation depth", weight: 0.4, kind: "single", optional: true },
+    ...COMMON
+  ];
+  var WRITING = [
+    // `content_type` *is* the output format for a writing request, which is why
+    // the shared `output_format` slot stays at its low default weight here.
+    { id: "content_type", label: "Content type", weight: 0.92, kind: "single" },
+    { id: "topic", label: "Topic", weight: 0.85, kind: "text" },
+    { id: "audience", label: "Target audience", weight: 0.85, kind: "single" },
+    { id: "purpose", label: "Purpose / goal", weight: 0.65, kind: "single" },
+    { id: "tone", label: "Tone", weight: 0.65, kind: "single" },
+    { id: "length", label: "Length", weight: 0.6, kind: "single" },
+    { id: "structure", label: "Structure", weight: 0.5, kind: "single" },
+    { id: "must_include", label: "Must include", weight: 0.55, kind: "text", optional: true },
+    // "no jargon", "avoid clichés" — an explicit exclusion is a requirement, and
+    // asking "anything to avoid?" after the user already said it is a defect.
+    { id: "must_avoid", label: "Must avoid", weight: 0.4, kind: "text", optional: true },
+    { id: "language_out", label: "Output language", weight: 0.45, kind: "single", optional: true },
+    // Translation only: which language the source is in, and the register the
+    // result should read in. Gated so ordinary writing is never asked these.
+    {
+      id: "source_language",
+      label: "Source language",
+      weight: 0.6,
+      kind: "single",
+      condition: { slot: "intent_kind", equals: ["translate"] }
+    },
+    {
+      id: "register",
+      label: "Register",
+      weight: 0.5,
+      kind: "single",
+      condition: { slot: "intent_kind", equals: ["translate"] }
+    },
+    ...COMMON
+  ];
+  var RESEARCH = [
+    { id: "question", label: "Research question", weight: 0.95, kind: "text" },
+    { id: "scope", label: "Scope", weight: 0.85, kind: "single" },
+    { id: "decision", label: "Decision it informs", weight: 0.7, kind: "text" },
+    { id: "depth", label: "Depth", weight: 0.6, kind: "single" },
+    { id: "sources", label: "Source expectations", weight: 0.6, kind: "multi" },
+    { id: "recency", label: "Recency", weight: 0.5, kind: "single" },
+    { id: "geography", label: "Geography / market", weight: 0.45, kind: "single", optional: true },
+    { id: "output_format", label: "Output format", weight: 0.5, kind: "single" },
+    ...COMMON
+  ];
+  var IMAGE = [
+    { id: "subject", label: "Main subject", weight: 0.95, kind: "text" },
+    { id: "style", label: "Visual style", weight: 0.85, kind: "single" },
+    { id: "composition", label: "Composition", weight: 0.6, kind: "single" },
+    { id: "environment", label: "Environment", weight: 0.6, kind: "single" },
+    { id: "lighting", label: "Lighting / mood", weight: 0.5, kind: "single" },
+    { id: "aspect_ratio", label: "Aspect ratio", weight: 0.55, kind: "single" },
+    { id: "purpose", label: "Intended use", weight: 0.5, kind: "single" },
+    { id: "palette", label: "Palette", weight: 0.4, kind: "single", optional: true },
+    { id: "text_in_image", label: "Text in the image", weight: 0.3, kind: "text", optional: true }
+  ];
+  var BUSINESS = [
+    { id: "goal", label: "Business goal", weight: 0.95, kind: "single" },
+    { id: "offering", label: "Product / offering", weight: 0.85, kind: "text" },
+    { id: "market", label: "Market / audience", weight: 0.8, kind: "single" },
+    { id: "stage", label: "Stage", weight: 0.6, kind: "single" },
+    { id: "timeframe", label: "Timeframe", weight: 0.6, kind: "single" },
+    { id: "budget", label: "Budget / resources", weight: 0.5, kind: "single", optional: true },
+    { id: "constraints", label: "Constraints", weight: 0.5, kind: "multi" },
+    { id: "output_shape", label: "Deliverable", weight: 0.6, kind: "single" },
+    ...COMMON
+  ];
+  var EDUCATION = [
+    { id: "topic", label: "Topic", weight: 0.95, kind: "text" },
+    { id: "level", label: "Current level", weight: 0.85, kind: "single" },
+    { id: "goal", label: "Learning goal", weight: 0.75, kind: "single" },
+    { id: "depth", label: "Depth", weight: 0.55, kind: "single" },
+    { id: "style", label: "Explanation style", weight: 0.5, kind: "single" },
+    { id: "timeframe", label: "Time available", weight: 0.45, kind: "single", optional: true },
+    { id: "language_out", label: "Output language", weight: 0.4, kind: "single", optional: true },
+    ...COMMON
+  ];
+  var GENERAL = [
+    { id: "goal", label: "Objective", weight: 0.85, kind: "text" },
+    { id: "context", label: "Context", weight: 0.6, kind: "text", optional: true },
+    { id: "output_format", label: "Expected output", weight: 0.6, kind: "single" },
+    { id: "audience", label: "Audience", weight: 0.45, kind: "single", optional: true },
+    { id: "depth", label: "Depth", weight: 0.45, kind: "single", optional: true },
+    ...COMMON
+  ];
+  var SCHEMAS = {
+    website: WEBSITE,
+    software: SOFTWARE,
+    mobile: MOBILE,
+    coding: CODING,
+    writing: WRITING,
+    research: RESEARCH,
+    image: IMAGE,
+    business: BUSINESS,
+    education: EDUCATION,
+    general: GENERAL
+  };
+  var DEDUPED = /* @__PURE__ */ new Map();
+  function schemaFor(taskType) {
+    const cached = DEDUPED.get(taskType);
+    if (cached) return cached;
+    const seen = /* @__PURE__ */ new Set();
+    const out = [];
+    for (const slot of SCHEMAS[taskType] ?? SCHEMAS.general) {
+      if (seen.has(slot.id)) continue;
+      seen.add(slot.id);
+      out.push(slot);
+    }
+    DEDUPED.set(taskType, out);
+    return out;
+  }
+  function slotSpec(taskType, slotId) {
+    return schemaFor(taskType).find((s) => s.id === slotId);
+  }
+  function slotLabel(taskType, slotId) {
+    return slotSpec(taskType, slotId)?.label ?? labelFromId(slotId);
+  }
+  function labelFromId(slotId) {
+    const words = slotId.replace(/[_.-]+/g, " ").trim();
+    return words === "" ? slotId : words.charAt(0).toUpperCase() + words.slice(1);
+  }
+  var FUNCTIONAL_SLOTS = /* @__PURE__ */ new Set([
+    "features",
+    "feature",
+    "purpose",
+    "goal",
+    "problem",
+    "question",
+    "subject",
+    "topic",
+    "content_type",
+    "offering",
+    "scope",
+    "output_shape",
+    "interfaces"
+  ]);
+  var CONSTRAINT_SLOTS = /* @__PURE__ */ new Set([
+    "constraints",
+    "deadline",
+    "budget",
+    "tech_stack",
+    "framework",
+    "language",
+    "deployment",
+    "scale",
+    "timeframe",
+    "recency",
+    "palette"
+  ]);
+  var AUDIENCE_SLOTS = /* @__PURE__ */ new Set(["audience", "market", "recipient", "level"]);
+  var OUTPUT_SLOTS = /* @__PURE__ */ new Set([
+    "output_format",
+    "output_shape",
+    "format",
+    "length",
+    "structure",
+    "depth",
+    "style",
+    "deliverable",
+    "store",
+    "aspect_ratio"
+  ]);
+  var TECHNICAL_SLOTS = /* @__PURE__ */ new Set([
+    "platform",
+    "language",
+    "framework",
+    "tech_stack",
+    "backend",
+    "database",
+    "auth",
+    "data_storage",
+    "mobile_os",
+    "deployment",
+    "testing",
+    "interfaces",
+    "notifications",
+    "context",
+    "error"
+  ]);
+
+  // packages/core/src/text.ts
+  function squash(text) {
+    return text.replace(/\s+/g, " ").trim();
+  }
+  function wordCount(text) {
+    const t = text.trim();
+    return t === "" ? 0 : t.split(/\s+/).length;
+  }
+  function clip(text, max) {
+    const t = text.trim();
+    if (t.length <= max) return t;
+    return `${t.slice(0, Math.max(0, max - 1)).trimEnd()}\u2026`;
+  }
+  function capitalize(text) {
+    const t = text.trim();
+    return t === "" ? t : t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  function asList(value) {
+    if (value === void 0) return [];
+    return Array.isArray(value) ? value : [value];
+  }
+  function bare(text) {
+    return text.trim().replace(/[.;,]+$/, "");
+  }
+  var counter = 0;
+  function nextId(prefix = "a") {
+    counter = (counter + 1) % 1e6;
+    return `${prefix}-${Date.now().toString(36)}-${counter.toString(36)}`;
+  }
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+  function percent(value) {
+    return clamp(Math.round(value), 0, 100);
+  }
+
+  // packages/core/src/extract.ts
+  var LANGUAGE_NAMES = "english|hindi|spanish|french|german|japanese|chinese|mandarin|arabic|portuguese|russian|korean|italian|tamil|telugu|bengali|marathi|urdu|dutch|turkish|polish";
+  var lower = (v) => v.toLowerCase().trim();
+  var trim = (v) => v.trim();
+  var EXTRACTORS = [
+    // ── universal ────────────────────────────────────────────────────────────
+    {
+      slot: "output_format",
+      re: /\b(?:as|in|into|using)\s+(?:a\s+)?(bullet points?|bullets|a table|table|markdown|json|csv|yaml|a list|list|plain text|paragraphs?|an essay|a report|slides?|deck|a spreadsheet|pdf|docx|html|code)\b/i,
+      group: 1,
+      confidence: 0.8,
+      normalize: lower
+    },
+    {
+      slot: "deadline",
+      re: /\b(?:by|before|within|in|due)\s+(tomorrow|today|tonight|next week|next month|this week|this month|the weekend|\d+\s*(?:days?|weeks?|months?|hours?))/i,
+      group: 1,
+      confidence: 0.8,
+      normalize: lower
+    },
+    {
+      slot: "budget",
+      re: /(?:[$£€₹]|rs\.?|inr|usd|eur|gbp)\s?\d[\d,.]*\s?(?:k|thousand|million|lakh|crore)?|\b\d[\d,.]*\s?(?:dollars|rupees|euros|usd|inr)\b/i,
+      group: 0,
+      confidence: 0.85,
+      normalize: trim
+    },
+    {
+      slot: "audience",
+      // Two passes. The curated noun list first (high confidence), then a generic
+      // "for <noun phrase>" pass so an audience the list has never heard of —
+      // "for first-time home buyers", "for our warehouse staff" — is still read
+      // instead of being asked about again.
+      re: /\b(?:for|aimed at|targeting|target(?:ed)? (?:at|audience:?)|used by|written for|meant for|audience:?)\s+(?:(?:my|our|the|a|an)\s+)?((?:[a-z0-9'-]+\s+){0,2}(?:beginners?|newbies|students?|kids|children|teens|teenagers|adults|professionals|developers?|engineers?|designers?|founders?|executives?|managers?|investors?|recruiters?|customers?|clients?|users?|readers?|general public|small business(?:es)?|enterprises?|internal teams?|team))\b/i,
+      group: 1,
+      confidence: 0.8,
+      normalize: lower
+    },
+    {
+      slot: "audience",
+      // Fallback for audiences the curated list does not know. Deliberately
+      // conservative: two to three lowercase words after "for", with no verb-ish
+      // or question-ish material, so "for a moment" or "for the win" do not count.
+      re: /\b(?:written\s+)?for\s+((?:(?:first[- ]time|new|existing|prospective|potential|aspiring|small|large|senior|junior|non[- ]technical)\s+)?(?:home\s+|prospective\s+)?[a-z][a-z0-9'-]*(?:\s+(?!in\b|at\b|with\b|that\b|who\b|about\b|on\b|by\b|from\b)[a-z][a-z0-9'-]*){0,3})\s*(?:[,;:.]|\s+(?:in|at|with|that|who|about|on|by|from)\b|$)/i,
+      group: 1,
+      confidence: 0.55,
+      normalize: lower
+    },
+    {
+      slot: "language_out",
+      re: new RegExp(`\\b(?:in|into|to)\\s+(${LANGUAGE_NAMES})\\b`, "i"),
+      group: 1,
+      confidence: 0.85,
+      normalize: lower
+    },
+    {
+      slot: "level",
+      re: /\b(beginner|intermediate|advanced|expert|newbie|no (?:prior )?experience|from scratch|eli5|five[- ]year[- ]old|just starting)\b/i,
+      group: 1,
+      confidence: 0.8,
+      normalize: lower
+    },
+    {
+      slot: "depth",
+      re: /\b(brief|quick|short|concise|detailed|in-?depth|comprehensive|exhaustive|thorough|deep dive)\b(?:\s+(?:overview|analysis|summary|report|answer|guide|explanation))?/i,
+      group: 1,
+      confidence: 0.65,
+      normalize: lower
+    },
+    {
+      slot: "tone",
+      re: /\b(formal|informal|casual|friendly|professional|playful|witty|serious|empathetic|confident|humble|persuasive|neutral|enthusiastic|sarcastic|humorous|warm|direct|bold)\b(?:\s+tone)?/i,
+      group: 1,
+      confidence: 0.75,
+      normalize: lower
+    },
+    {
+      slot: "length",
+      // "900-word", "500 word", "20-paragraph" and bare "1200 words" all count.
+      // The unit often appears *after* the number in a compound ("900-word post"),
+      // which the old pattern missed entirely.
+      re: /\b((?:\d[\d,]*\s*-?\s*(?:words?|pages?|slides?|paragraphs?|sentences?|lines?|characters?))|one[- ]page|single[- ]page|two[- ]pages?|short|long)\b/i,
+      group: 1,
+      confidence: 0.7,
+      normalize: lower
+    },
+    {
+      slot: "geography",
+      re: /\b(?:in|for|across|targeting)\s+(india|the us|the usa|usa|us|america|europe|asia|africa|uk|britain|canada|australia|germany|france|japan|china|singapore|dubai|uae|mumbai|delhi|bangalore|bengaluru|hyderabad|pune|new york|london|global|worldwide)\b/i,
+      group: 1,
+      confidence: 0.75,
+      normalize: lower
+    },
+    {
+      slot: "recency",
+      re: /\b(last|past|recent)\s+(week|month|quarter|year|five years|decade|\d+ (?:days|weeks|months|years))|\b(?:20\d\d)\b|\blatest\b|\bcurrent\b/i,
+      group: 0,
+      confidence: 0.6,
+      normalize: trim
+    },
+    {
+      slot: "timeframe",
+      re: /\b(\d+\s*(?:days?|weeks?|months?|years?)|a (?:day|week|month|year)|weekend|this (?:week|month|quarter|year)|next quarter|q[1-4])\b/i,
+      group: 1,
+      confidence: 0.7,
+      normalize: lower
+    },
+    {
+      slot: "constraints",
+      re: /\b(no (?:backend|database|login|auth\w*|javascript|js|framework|dependencies)|must (?:be|run|work|not)\b[^.,;]{0,40}|offline(?:[- ]first)?|without (?:a )?(?:backend|database|login|auth\w*)|single[- ]file|vanilla|lightweight|mobile[- ]first|accessible|a11y|seo[- ]friendly|gdpr|hipaa)\b/i,
+      group: 0,
+      confidence: 0.7,
+      multi: true,
+      normalize: lower
+    },
+    {
+      slot: "output_shape",
+      re: /\b(complete (?:runnable |working )?(?:project|app|application|codebase|website|site)|full (?:project|codebase|implementation)|whole (?:project|thing)|single file|one file|just the code|code only|snippet|architecture|design only|plan only|production[- ]ready|working example|boilerplate|scaffold|end[- ]to[- ]end)\b/i,
+      group: 0,
+      confidence: 0.8,
+      normalize: lower
+    },
+    {
+      slot: "testing",
+      re: /\b(unit tests?|integration tests?|e2e|end[- ]to[- ]end tests?|test suite|with tests|no tests)\b/i,
+      group: 0,
+      confidence: 0.8,
+      normalize: lower
+    },
+    // ── website ──────────────────────────────────────────────────────────────
+    {
+      slot: "site_type",
+      re: /\b(landing page|marketing site|portfolio|blog|e-?commerce|online store|shop|saas|dashboard|web app|webapp|documentation site|docs site|wiki|forum|community site|booking site|news site|personal site|brochure site|admin panel|marketplace)\b/i,
+      group: 1,
+      confidence: 0.8,
+      normalize: lower
+    },
+    {
+      slot: "pages",
+      re: /\b(home|homepage|about|about us|services?|products?|pricing|contact|blog|faq|careers|testimonials?|gallery|portfolio|checkout|cart|signup|sign[- ]up|login|terms|privacy|dashboard|settings) pages?\b|\b(?:pages?|screens?):\s*([^.]+)/i,
+      group: 0,
+      confidence: 0.7,
+      multi: true,
+      normalize: lower
+    },
+    {
+      slot: "design_direction",
+      re: /\b(minimal(?:ist)?|brutalist|swiss|editorial|corporate|playful|bold|clean|modern|elegant|luxur\w+|premium|dark mode|light mode|glassmorph\w+|material|flat design|bento|retro|maximalist|monochrome|neubrutalism|immersive|3d)\b(?:\s+(?:design|look|style|aesthetic|theme))?/i,
+      group: 1,
+      confidence: 0.7,
+      normalize: lower
+    },
+    {
+      slot: "features",
+      re: /\b(auth\w*|login|sign[- ]in|sign[- ]up|payments?|stripe|razorpay|checkout|cart|search|filters?|notifications?|chat|comments?|likes?|reviews?|ratings?|analytics|dashboard|admin panel|cms|blog|newsletter|subscriptions?|multi[- ]?language|i18n|dark mode|upload|file (?:upload|storage)|booking|calendar|map|geolocation|export|csv export|api|webhooks?|integrations?|referrals?|coupons?|invoices?|onboarding)\b/i,
+      group: 1,
+      confidence: 0.7,
+      multi: true,
+      normalize: lower
+    },
+    {
+      slot: "tech_stack",
+      re: /\b(next\.?js|nuxt|sveltekit|astro|gatsby|remix|react|vue|angular|svelte|solidjs|wordpress|shopify|webflow|framer|html|css|tailwind|bootstrap|django|flask|fastapi|rails|laravel|express|node\.?js|php|astro)\b/i,
+      group: 1,
+      confidence: 0.85,
+      normalize: lower
+    },
+    {
+      slot: "backend",
+      re: /\b(no backend|static site|static|serverless|supabase|firebase|node backend|python backend|django|flask|fastapi|lambdas?|cloudflare workers?|appwrite|pocketbase|hasura)\b/i,
+      group: 0,
+      confidence: 0.7,
+      normalize: lower
+    },
+    {
+      slot: "auth",
+      re: /\b(no (?:login|auth\w*|accounts?)|google (?:sign[- ]in|oauth)|github (?:sign[- ]in|oauth)|magic link|otp|jwt|email\/password|email and password|sso|oauth|passwordless|2fa)\b/i,
+      group: 0,
+      confidence: 0.75,
+      normalize: lower
+    },
+    {
+      slot: "database",
+      re: /\b(postgres(?:ql)?|mysql|sqlite|mongo(db)?|redis|supabase|firebase|dynamodb|planet ?scale|neon|prisma|drizzle)\b/i,
+      group: 0,
+      confidence: 0.8,
+      normalize: lower
+    },
+    {
+      slot: "deployment",
+      re: /\b(vercel|netlify|cloudflare|aws|gcp|azure|heroku|railway|render|digitalocean|fly\.io|github pages|self[- ]host\w*|docker)\b/i,
+      group: 0,
+      confidence: 0.75,
+      normalize: lower
+    },
+    // ── software / coding ────────────────────────────────────────────────────
+    {
+      slot: "platform",
+      re: /\b(web|browser|cli|command[- ]line|desktop|server|backend|api|mobile|android|ios|macos|windows|linux|browser extension|chrome extension|vscode extension|slack bot|discord bot|telegram bot|whatsapp bot)\b/i,
+      group: 1,
+      confidence: 0.75,
+      normalize: lower,
+      multi: true
+    },
+    {
+      slot: "language",
+      re: /\b(python|javascript|typescript|java|kotlin|swift|golang|go|rust|c\+\+|c#|csharp|php|ruby|scala|dart|sql|bash|shell|powershell|haskell|elixir|erlang|clojure|lua|r)\b/i,
+      group: 1,
+      confidence: 0.85,
+      normalize: lower,
+      multi: true,
+      only: ["software", "coding", "website", "mobile", "general"]
+    },
+    {
+      slot: "framework",
+      re: /\b(react|next\.?js|vue|nuxt|svelte|angular|django|flask|fastapi|spring|laravel|rails|express|nest\.?js|node\.?js|flutter|react native|jetpack compose|swiftui|tailwind|bootstrap|dotnet|\.net|pandas|numpy|polars|pytorch|tensorflow|scikit-?learn|electron|tauri|expo)\b/i,
+      group: 1,
+      confidence: 0.85,
+      normalize: lower,
+      only: ["software", "coding", "website", "mobile"]
+    },
+    {
+      slot: "data_storage",
+      re: /\b(postgres(?:ql)?|mysql|sqlite|mongo(db)?|redis|dynamodb|firestore|supabase|json file|csv file|in[- ]memory|localstorage|no (?:database|storage|persistence))\b/i,
+      group: 0,
+      confidence: 0.75,
+      normalize: lower,
+      only: ["software"]
+    },
+    {
+      slot: "interfaces",
+      re: /\b(rest api|graphql|grpc|webhook\w*|websocket\w*|cli|http api|openapi|swagger|message queue|kafka|rabbitmq|sdk)\b/i,
+      group: 0,
+      confidence: 0.8,
+      normalize: lower,
+      multi: true,
+      only: ["software"]
+    },
+    {
+      slot: "mobile_os",
+      re: /\b(android|ios|iphone|ipad|both platforms|cross[- ]platform)\b/i,
+      group: 1,
+      confidence: 0.85,
+      normalize: lower,
+      only: ["mobile"]
+    },
+    {
+      slot: "context",
+      re: /\b(in my (?:existing )?(?:codebase|project|repo)|existing (?:app|code|project)|legacy|monorepo|typescript project|next\.?js app|django project|already have)\b/i,
+      group: 0,
+      confidence: 0.7,
+      normalize: trim,
+      only: ["coding"]
+    },
+    {
+      slot: "error",
+      re: /\b(error|exception|traceback|stack ?trace|typeerror|valueerror|nullpointer|segfault|500|404|crash(?:es|ing)?|fails? (?:with|when))\b/i,
+      group: 0,
+      confidence: 0.7,
+      normalize: trim,
+      only: ["coding"]
+    },
+    // ── writing / research ───────────────────────────────────────────────────
+    {
+      slot: "content_type",
+      re: /\b(blog post|article|essay|story|poem|email|e-?mail|letter|cover letter|speech|newsletter|caption|thread|press release|whitepaper|case study|product description|resume|cv|bio|landing copy|ad copy|tagline|readme|documentation|docstring|changelog|proposal|report|guide|tutorial)\b/i,
+      group: 1,
+      confidence: 0.85,
+      normalize: lower,
+      only: ["writing"]
+    },
+    {
+      slot: "purpose",
+      re: /\b(?:to|in order to|so (?:that|it can))\s+(apply|apologi[sz]e|request|inform|announce|invite|thank|follow up|pitch|sell|promote|introduce|remind|congratulate|resign|negotiate|convert|educate|persuade|rank|launch|sell|generate leads?|build trust)\b/i,
+      group: 1,
+      confidence: 0.7,
+      normalize: lower,
+      only: ["writing", "research"]
+    },
+    {
+      slot: "must_avoid",
+      // "no jargon", "avoid buzzwords", "don't use clichés".
+      re: /\b(?:no|avoid|without|don't use|do not use|never use)\s+((?:[a-z-]+\s+){0,2}(?:jargon|buzzwords?|clich[eé]s?|slang|emojis?|technical terms?|fluff|filler))\b/i,
+      group: 1,
+      confidence: 0.7,
+      normalize: lower
+    },
+    {
+      slot: "must_include",
+      // "must mention the rate", "include a screenshot", "make sure to cover …".
+      re: /\b(?:must|should|needs? to|has to|make sure to|be sure to)\s+(?:include|mention|cover|contain|address|explain)\s+([^.,;]{3,60})/i,
+      group: 1,
+      confidence: 0.6,
+      normalize: trim
+    },
+    {
+      slot: "structure",
+      // "with a checklist at the end", "four sections", "TL;DR at the top",
+      // "ends with a call to action" — the shapes writers actually ask for.
+      re: /\b(?:with\s+(?:an?\s+)?)?((?:intro\w*|introduction|checklist|sections?|headings?|subheadings?|bullet points?|numbered list|tl;?dr|summary|conclusion|call to action|cta|table|steps?)(?:\s+(?:at|in)\s+the\s+(?:top|end|beginning))?)/i,
+      group: 1,
+      confidence: 0.65,
+      normalize: lower,
+      only: ["writing"]
+    },
+    {
+      slot: "sources",
+      re: /\b(peer[- ]reviewed|academic|scholarly|citations?|cite|references|research papers|studies|official docs|documentation|news articles|primary sources|recent studies)\b/i,
+      group: 0,
+      confidence: 0.75,
+      normalize: lower,
+      multi: true,
+      only: ["research"]
+    },
+    {
+      slot: "scope",
+      re: /\b(pricing|features?|alternatives|competitors?|market (?:size|share|trends?)|adoption|performance|security|reliability|cost of ownership|total cost|integration|ecosystem|developer experience|community|roadmap)\b/i,
+      group: 0,
+      confidence: 0.65,
+      normalize: lower,
+      multi: true,
+      only: ["research"]
+    },
+    // ── image ────────────────────────────────────────────────────────────────
+    {
+      slot: "style",
+      re: /\b(photorealistic|photo ?real|realistic|cartoon|anime|watercolou?r|oil painting|pixel art|3d render|render|line art|flat design|flat illustration|minimal(?:ist)?|modern|vintage|retro|cyberpunk|steampunk|isometric|cinematic|abstract|art deco|bauhaus|low poly|vector|claymation|ukiyo-?e|comic|sketch|concept art)\b(?:\s+(?:style|look|aesthetic))?/i,
+      group: 1,
+      confidence: 0.8,
+      normalize: lower,
+      only: ["image"]
+    },
+    {
+      slot: "lighting",
+      re: /\b(studio lighting|golden hour|natural light|low light|neon|backlit|soft light|dramatic lighting|harsh shadows|moody|bright|blue hour|rim light|candle ?light|sunset|sunrise|overcast)\b/i,
+      group: 1,
+      confidence: 0.75,
+      normalize: lower,
+      only: ["image"]
+    },
+    {
+      slot: "aspect_ratio",
+      re: /\b(\d+:\d+|\d+x\d+|square|portrait|landscape|widescreen|vertical|horizontal)\b/i,
+      group: 1,
+      confidence: 0.8,
+      normalize: lower,
+      only: ["image"]
+    },
+    {
+      slot: "environment",
+      re: /\b(?:in|on|at|inside)\s+(?:a|an|the)\s+([a-z][a-z \-]{2,28})/i,
+      group: 1,
+      confidence: 0.55,
+      normalize: lower,
+      only: ["image"]
+    },
+    {
+      slot: "composition",
+      re: /\b(close[- ]up|wide shot|full body|portrait|headshot|top[- ]down|bird'?s[- ]eye|low angle|high angle|centered|symmetrical|rule of thirds|macro|panorama)\b/i,
+      group: 1,
+      confidence: 0.75,
+      normalize: lower,
+      only: ["image"]
+    },
+    {
+      slot: "palette",
+      re: /\b(pastel|monochrome|black and white|sepia|vibrant|muted|earthy|neon colors?|warm tones?|cool tones?|duotone)\b/i,
+      group: 1,
+      confidence: 0.7,
+      normalize: lower,
+      only: ["image"]
+    },
+    // ── business ─────────────────────────────────────────────────────────────
+    {
+      slot: "stage",
+      re: /\b(idea stage|idea|mvp|prototype|pre[- ]launch|launched|early stage|growth stage|scaling|established|series [a-c]|seed)\b/i,
+      group: 1,
+      confidence: 0.7,
+      normalize: lower,
+      only: ["business"]
+    },
+    {
+      slot: "market",
+      re: /\b(?:for|targeting|serving)\s+(small business(?:es)?|smbs?|enterprises?|consumers?|b2b|b2c|developers?|students?|freelancers?|agencies|creators?|restaurants?|retailers?|healthcare|education|fintech)\b/i,
+      group: 1,
+      confidence: 0.75,
+      normalize: lower,
+      only: ["business"]
+    },
+    // ── education ────────────────────────────────────────────────────────────
+    {
+      slot: "style",
+      re: /\b(with examples?|analogy|analogies|step[- ]by[- ]step|visual|hands[- ]on|exercises?|quiz|flashcards?|diagram)\b/i,
+      group: 0,
+      confidence: 0.6,
+      normalize: lower,
+      only: ["education"]
+    }
+  ];
+  var VAGUE_ADJECTIVES = /\b(really|cool|nice|good|great|amazing|awesome|better|best|modern|professional|attractive|simple|clean|beautiful|pretty|fancy|slick|powerful|robust|scalable|efficient|smart|seamless|intuitive|user[- ]friendly|top[- ]notch|world[- ]class|cutting[- ]edge|next[- ]gen|innovative|ultimate|perfect)\b/gi;
+  var CATEGORY_NOUNS = "app|application|website|web app|webapp|site|landing page|dashboard|tool|platform|bot|extension|plugin|system|service|api|tracker|store|shop|game|portal|marketplace|portfolio|blog|chatbot|assistant|agent|crm|erp|saas|clone";
+  var SUBJECT_RE = new RegExp(
+    `([a-z][a-z0-9'\\-]*(?:\\s+[a-z][a-z0-9'\\-]*){0,3})\\s+(${CATEGORY_NOUNS})\\b`,
+    "i"
+  );
+  var DERIVATIVE_NOUN_RE = /\b(blog post|post|letter|cover letter|essay|article|email|e-?mail|story|poem|guide|report|proposal|plan|script|speech|newsletter|caption|documentation|readme|blog)\b/i;
+  var LEADING_NOISE = new RegExp(
+    "^(?:" + [
+      "i\\s+(?:really\\s+)?(?:want|need|would\\s+like|'d\\s+like|am\\s+looking\\s+for)",
+      "we\\s+(?:want|need|are\\s+looking\\s+for)",
+      "can\\s+you|could\\s+you|would\\s+you|please|pls|help\\s+me|for\\s+me",
+      "build|make|create|develop|design|write|draft|compose|generate|implement|launch|ship|add",
+      "me|us|a|an|the|our|my|your|their|some|any",
+      "really|very|super|just|also|new|simple|nice|cool|good|great|amazing|awesome|best|small|big|quick|modern|professional|clean|beautiful|fancy|slick"
+    ].join("|") + ")(?:\\s+|$)",
+    "i"
+  );
+  var IMAGE_OF_RE = /\b(?:image|picture|photo|photograph|illustration|drawing|artwork|render|logo|icon|poster|banner|wallpaper|avatar|sketch|painting)\s+(?:of|for|showing|with|featuring)\s+(?:a|an|the|my|our)?\s*([a-z0-9][a-z0-9 '\-]{1,42})/i;
+  function extractSubject(text) {
+    const clean = squash(text);
+    const imageMatch = IMAGE_OF_RE.exec(clean);
+    if (imageMatch?.[1]) {
+      const raw = imageMatch[1].replace(/\b(in|with|on|at|for|that|which|using|and then|style|photorealistic|cartoon)\b.*$/i, "").replace(/[.,;!?]+$/, "").trim();
+      if (raw !== "" && raw.split(" ").length <= 6) {
+        return { subject: raw, domain: raw, category: "image" };
+      }
+    }
+    const match = SUBJECT_RE.exec(clean);
+    if (!match) return { subject: "", domain: "", category: "" };
+    let descriptor = (match[1] ?? "").trim();
+    const category = (match[2] ?? "").trim().toLowerCase();
+    for (let i = 0; i < 6; i += 1) {
+      const next = descriptor.replace(LEADING_NOISE, "");
+      if (next === descriptor) break;
+      descriptor = next;
+    }
+    const domain = descriptor.replace(VAGUE_ADJECTIVES, " ").replace(/\s+/g, " ").trim();
+    if (domain.split(" ").filter(Boolean).length === 0) {
+      return { subject: category, domain: "", category };
+    }
+    const subject = domain === "" ? category : `${domain} ${category}`;
+    return { subject, domain, category };
+  }
+  function extractTopic(text) {
+    const clean = squash(text);
+    const cue = /\b(?:about|on|regarding|covering|explaining|discussing|understanding|learn|study|teach(?:\s+me)?)\s+([A-Za-z][A-Za-z0-9 &'’\-]{2,44})/i.exec(clean);
+    if (cue?.[1]) {
+      return cue[1].replace(/\b(in|with|that|which|using|and then)\b.*$/i, "").trim();
+    }
+    const bare2 = /^\W*(?:please\s+)?(?:explain|describe|teach me|help me understand|walk me through)\s+(.{3,60})$/i.exec(clean);
+    if (!bare2?.[1]) return "";
+    return bare2[1].replace(/[.?!]+$/, "").replace(/\b(in|with|that|which|using|and then|for me)\b.*$/i, "").trim();
+  }
+  var AMBIGUITY_RULES = [
+    { kind: "vague-noun", re: /\b(something|anything|stuff|things|whatever|some kind of|a thing|etc\.?|and so on|you know)\b/i, severity: 0.9 },
+    { kind: "vague-adjective", re: VAGUE_ADJECTIVES, severity: 0.55 },
+    { kind: "hedge", re: /\b(maybe|kind of|sort of|idk|i don'?t know|not sure|probably|perhaps|or whatever)\b/i, severity: 0.6 },
+    { kind: "unbounded", re: /\b(as (?:much|many|long|detailed) as possible|no limit|unlimited|as needed|sky'?s the limit)\b/i, severity: 0.5 }
+  ];
+  function detectAmbiguities(text) {
+    const out = [];
+    for (const rule of AMBIGUITY_RULES) {
+      const global = new RegExp(rule.re.source, rule.re.flags.includes("g") ? rule.re.flags : `${rule.re.flags}g`);
+      let m;
+      let guard = 0;
+      while ((m = global.exec(text)) !== null && guard < 8) {
+        guard += 1;
+        out.push({ kind: rule.kind, evidence: m[0].trim(), severity: rule.severity });
+        if (m.index === global.lastIndex) global.lastIndex += 1;
+      }
+    }
+    if (out.length > 3) for (const a of out) a.severity = Math.min(1, a.severity + 0.05);
+    return out;
+  }
+  var CONFLICT_RULES = [
+    {
+      id: "short-vs-detailed",
+      a: /\b(short|brief|concise|one[- ]page|tl;?dr|quick|minimal)\b/i,
+      b: /\b(detailed|comprehensive|in-?depth|thorough|exhaustive|everything|complete guide)\b/i,
+      description: "The request asks for a short result and a comprehensive one at the same time.",
+      question: "You asked for something short and something comprehensive \u2014 which should win?"
+    },
+    {
+      id: "simple-vs-rich",
+      a: /\b(simple|minimal|bare[- ]bones|mvp|basic|lightweight)\b/i,
+      b: /\b(full[- ]featured|rich|advanced|everything|enterprise|complete)\b/i,
+      description: "The request asks for a minimal build and a feature-rich one at the same time.",
+      question: "Should this stay minimal, or include the full feature set?"
+    },
+    {
+      id: "cheap-vs-premium",
+      a: /\b(cheap|budget|low[- ]cost|free|inexpensive|affordable)\b/i,
+      b: /\b(premium|luxur\w+|high[- ]end|enterprise|best[- ]in[- ]class|expensive)\b/i,
+      description: "The request asks for both a low-cost and a premium outcome.",
+      question: "Budget or premium quality \u2014 which matters more here?"
+    },
+    {
+      id: "no-backend-vs-login",
+      a: /\b(no|without) (?:a )?(backend|database|server)\b/i,
+      b: /\b(login|sign[- ]?in|sign[- ]?up|accounts?|users? can (?:save|log ?in)|authentication)\b/i,
+      description: "Login and saved data were requested, but no backend or database was allowed.",
+      question: "You ruled out a backend but asked for logins \u2014 how should accounts work?"
+    },
+    {
+      id: "static-vs-dynamic",
+      a: /\b(static site|static|plain html|no javascript|vanilla html)\b/i,
+      b: /\b(react|next\.?js|vue|angular|svelte|dynamic|real[- ]time|dashboard)\b/i,
+      description: "A static/no-JavaScript constraint conflicts with the requested framework or behaviour.",
+      question: "Static HTML or a JavaScript framework \u2014 which constraint is firm?"
+    },
+    {
+      id: "dark-vs-light",
+      a: /\b(dark (?:mode|theme)|black background)\b/i,
+      b: /\b(light (?:mode|theme)|white background|bright)\b/i,
+      description: "Both a dark and a light visual direction were requested.",
+      question: "Dark or light as the primary theme?"
+    },
+    {
+      id: "free-vs-paid",
+      a: /\b(free|no cost|open source)\b/i,
+      b: /\b(paid|subscription|monetis\w+|monetiz\w+|charge|pricing tiers?)\b/i,
+      description: "The request asks for both a free and a paid/monetised product.",
+      question: "Is this free, or does it need a paid tier?"
+    }
+  ];
+  function detectConflicts(text) {
+    const out = [];
+    for (const rule of CONFLICT_RULES) {
+      const a = rule.a.exec(text);
+      const b = rule.b.exec(text);
+      if (a && b) {
+        out.push({
+          id: rule.id,
+          description: rule.description,
+          evidence: [a[0].trim(), b[0].trim()],
+          question: rule.question
+        });
+      }
+    }
+    return out;
+  }
+  function extractRequirements(text, taskType) {
+    const clean = squash(text);
+    const allowed = new Set(schemaFor(taskType).map((s) => s.id));
+    const universal = /* @__PURE__ */ new Set([
+      "output_format",
+      "deadline",
+      "budget",
+      "audience",
+      "language_out",
+      "level",
+      "depth",
+      "tone",
+      "length",
+      "geography",
+      "recency",
+      "timeframe",
+      "constraints",
+      "output_shape",
+      "must_include",
+      "must_avoid",
+      "topic"
+    ]);
+    const detected = [];
+    const fields = {};
+    for (const ex of EXTRACTORS) {
+      if (ex.only && !ex.only.includes(taskType)) continue;
+      if (!allowed.has(ex.slot) && !universal.has(ex.slot)) continue;
+      const values = [];
+      if (ex.multi) {
+        const global = new RegExp(ex.re.source, ex.re.flags.includes("g") ? ex.re.flags : `${ex.re.flags}g`);
+        let m;
+        let guard = 0;
+        while ((m = global.exec(clean)) !== null && guard < 12) {
+          guard += 1;
+          const raw = m[ex.group ?? 0] ?? m[0] ?? "";
+          const value = (ex.normalize ?? trim)(raw);
+          if (value !== "") values.push({ value, evidence: m[0].trim() });
+          if (m.index === global.lastIndex) global.lastIndex += 1;
+        }
+      } else {
+        const m = ex.re.exec(clean);
+        if (m) {
+          const raw = m[ex.group ?? 0] ?? m[0] ?? "";
+          const value = (ex.normalize ?? trim)(raw);
+          if (value !== "") values.push({ value, evidence: m[0].trim() });
+        }
+      }
+      if (values.length === 0) continue;
+      const existing = fields[ex.slot];
+      if (ex.multi) {
+        const merged = /* @__PURE__ */ new Set([
+          ...Array.isArray(existing) ? existing : existing ? [existing] : [],
+          ...values.map((v) => v.value)
+        ]);
+        fields[ex.slot] = Array.from(merged);
+      } else if (existing === void 0) {
+        fields[ex.slot] = values[0].value;
+      }
+      detected.push({
+        slot: ex.slot,
+        value: ex.multi ? values.map((v) => v.value) : values[0].value,
+        confidence: ex.confidence,
+        evidence: values.map((v) => v.evidence).join(" \xB7 ").slice(0, 160)
+      });
+    }
+    const subject = extractSubject(clean);
+    const intent = /\b(translate|translation|localise|localize|transliterate)\b/i.exec(clean) ? "translate" : /\b(fix|debug|repair|traceback|exception|typeerror|stack ?trace)\b/i.test(clean) ? "debug" : /\b(draw|illustrate|render|paint|sketch|photo|image of|picture of)\b/i.test(clean) ? "illustrate" : "";
+    subject.intent = intent;
+    const userVerb = /\b(build|make|create|develop|design|launch|need|want|plan|write|draft|research)\b/i.exec(clean);
+    const derivable = taskType !== "coding" && userVerb !== null && subject.subject !== "";
+    if (fields["purpose"] === void 0 && derivable) {
+      const allowedPurpose = schemaFor(taskType).find((sl) => sl.id === "purpose" || sl.id === "goal");
+      if (allowedPurpose && fields[allowedPurpose.id] === void 0) {
+        const value = userVerb[1].toLowerCase() === "want" || userVerb[1].toLowerCase() === "need" ? subject.subject : `${userVerb[1].toLowerCase()} ${subject.subject}`;
+        fields[allowedPurpose.id] = value;
+        detected.push({ slot: allowedPurpose.id, value, confidence: 0.6, evidence: subject.subject });
+      }
+    }
+    if (fields["topic"] === void 0 && allowed.has("topic")) {
+      const topic = extractTopic(clean);
+      if (topic !== "" && topic.split(" ").length <= 6) {
+        fields["topic"] = topic.toLowerCase();
+        detected.push({ slot: "topic", value: topic.toLowerCase(), confidence: 0.65, evidence: topic });
+      } else if (subject.subject !== "" && !DERIVATIVE_NOUN_RE.test(subject.subject)) {
+        const value = subject.subject.toLowerCase();
+        if (!fields["topic"]) {
+          fields["topic"] = value;
+          detected.push({ slot: "topic", value, confidence: 0.5, evidence: subject.subject });
+        }
+      } else if (subject.subject !== "" && fields["audience"] !== void 0) {
+        const audience = fields["audience"];
+        const value = (Array.isArray(audience) ? audience[0] : audience) ?? "";
+        if (value !== "" && !fields["topic"]) {
+          fields["topic"] = value;
+          detected.push({ slot: "topic", value, confidence: 0.5, evidence: `audience: ${value}` });
+        }
+      }
+    }
+    if (allowed.has("topic") && fields["topic"] === void 0) {
+      const topic = extractTopic(clean);
+      if (topic !== "") {
+        fields["topic"] = topic;
+        detected.push({ slot: "topic", value: topic, confidence: 0.6, evidence: topic });
+      }
+    }
+    if (allowed.has("subject") && fields["subject"] === void 0 && subject.domain !== "") {
+      fields["subject"] = subject.subject;
+      detected.push({ slot: "subject", value: subject.subject, confidence: 0.6, evidence: subject.domain });
+    }
+    if (fields["topic"] === void 0 || fields["topic"] === "") {
+      const quoted = /["“'']([^"”'']{2,80})["”'']/.exec(clean);
+      if (quoted?.[1] && allowed.has("topic")) {
+        const value = quoted[1].trim();
+        fields["topic"] = value;
+        detected.push({ slot: "topic", value, confidence: 0.6, evidence: clean.slice(0, 40) });
+      }
+    }
+    if (intent !== "") fields["intent_kind"] = intent;
+    const EQUIVALENT_SLOTS = [
+      ["topic", "subject", "question", "problem"],
+      ["purpose", "goal", "objective"]
+    ];
+    for (const group of EQUIVALENT_SLOTS) {
+      const known = group.find((slot) => fields[slot] !== void 0 && fields[slot] !== "");
+      if (known === void 0) continue;
+      const value = fields[known];
+      const rendered = Array.isArray(value) ? value.join(", ") : value;
+      for (const slot of group) {
+        if (slot === known) continue;
+        if (!allowed.has(slot) && !universal.has(slot)) continue;
+        if (fields[slot] !== void 0 && fields[slot] !== "") continue;
+        const spec = schemaFor(taskType).find((sl) => sl.id === slot);
+        if (spec?.kind !== "text") continue;
+        fields[slot] = rendered;
+        detected.push({ slot, value: rendered, confidence: 0.55, evidence: `derived from ${known}` });
+      }
+    }
+    if (allowed.has("goal") && (fields["goal"] === void 0 || fields["goal"] === "")) {
+      const verb = /\b(fix(?:ing)?|debug(?:ging)?|repair|why (?:does|is|do)|explain|refactor|optimi[sz]e|review|write tests?|add tests?|test|build|write|implement|port|migrate)\b/i.exec(clean);
+      const mapped = {
+        fix: "fix",
+        fixing: "fix",
+        repair: "fix",
+        debug: "debug",
+        debugging: "debug",
+        "why does": "debug",
+        "why is": "debug",
+        "why do": "debug",
+        explain: "explain",
+        refactor: "refactor",
+        optimize: "refactor",
+        optimise: "refactor",
+        review: "review",
+        "write tests": "test",
+        "add tests": "test",
+        test: "test",
+        build: "write",
+        write: "write",
+        implement: "write",
+        port: "write",
+        migrate: "write"
+      };
+      const key = verb?.[1]?.toLowerCase();
+      const value = key ? mapped[key] : void 0;
+      if (value) {
+        fields["goal"] = value;
+        detected.push({ slot: "goal", value, confidence: 0.7, evidence: verb[0] });
+      }
+    }
+    if (allowed.has("error") && (fields["error"] === void 0 || fields["error"] === "" || fields["error"] === "error")) {
+      const symptom = /((?:type|value|name|key|index|attribute|import|syntax|runtime)?error|[A-Z][a-zA-Z]*(?:Error|Exception))\s*:?\s*([^.]{0,80})|\b(?:traceback|stack ?trace)\b/i.exec(clean);
+      if (symptom) {
+        const value = squash(symptom[0]).slice(0, 120);
+        fields["error"] = value;
+        detected.push({ slot: "error", value, confidence: 0.7, evidence: value });
+      }
+    }
+    if (allowed.has("problem") && (fields["problem"] === void 0 || fields["problem"] === "")) {
+      const hasCode = /```|\b(def |class |function |import |const |let |>\s*\d|\$ )/.test(text);
+      const hasError = fields["error"] !== void 0;
+      if (hasCode || hasError) {
+        const value = squash(text).slice(0, 280);
+        fields["problem"] = value;
+        detected.push({ slot: "problem", value, confidence: hasCode ? 0.75 : 0.6, evidence: value.slice(0, 80) });
+      }
+    }
+    const FRAMEWORK_LANGUAGE = {
+      react: "typescript",
+      next: "typescript",
+      nuxt: "typescript",
+      vue: "typescript",
+      svelte: "typescript",
+      angular: "typescript",
+      express: "typescript",
+      nest: "typescript",
+      "node.js": "typescript",
+      nodejs: "typescript",
+      tailwind: "typescript",
+      django: "python",
+      flask: "python",
+      fastapi: "python",
+      pandas: "python",
+      laravel: "php",
+      rails: "ruby",
+      spring: "java",
+      flutter: "dart",
+      "react native": "typescript",
+      expo: "typescript",
+      swiftui: "swift"
+    };
+    if (fields["language"] === void 0 && typeof fields["framework"] === "string") {
+      const implied = FRAMEWORK_LANGUAGE[String(fields["framework"]).toLowerCase()];
+      if (implied) {
+        fields["language"] = implied;
+        detected.push({ slot: "language", value: implied, confidence: 0.6, evidence: `implied by ${String(fields["framework"])}` });
+      }
+    }
+    return { fields, detected, subject };
+  }
+
+  // packages/core/src/questions.ts
+  var DOMAIN_PACKS = [
+    {
+      id: "finance-tracking",
+      match: /\b(expense|spending|budget|finance|financial|money|wallet|invoice|billing|accounting|tax|payroll|salary|savings?|investment)\b/i,
+      label: "finance",
+      features: [
+        "Monthly spending analytics",
+        "Budget limits and alerts",
+        "Receipt scanning",
+        "Category-wise expense tracking",
+        "Shared or family accounts",
+        "Export to CSV or spreadsheets"
+      ],
+      purpose: [
+        "Track where my money goes",
+        "Stay inside a monthly budget",
+        "Split costs with other people",
+        "Prepare records for tax or accounts"
+      ],
+      pages: ["Dashboard", "Transactions list", "Add expense", "Reports", "Settings"],
+      audience: ["Just me", "My household or family", "A small team", "Freelance clients"]
+    },
+    {
+      id: "commerce",
+      match: /\b(shop|store|storefront|e-?commerce|marketplace|checkout|cart|product catalogue|product catalog|retail|merch)\b/i,
+      label: "store",
+      features: [
+        "Product catalogue with search and filters",
+        "Cart and checkout",
+        "Payment gateway integration",
+        "Order tracking for customers",
+        "Admin panel for inventory",
+        "Discount codes and coupons"
+      ],
+      purpose: ["Sell products online", "Show a catalogue and take enquiries", "Manage orders and inventory"],
+      pages: ["Home", "Product listing", "Product detail", "Cart", "Checkout", "Order confirmation"],
+      audience: ["Direct consumers", "Small businesses", "Wholesale buyers"]
+    },
+    {
+      id: "content-blog",
+      match: /\b(blog|magazine|news|publication|newsletter|articles?|cms|content site|docs site|documentation site|wiki)\b/i,
+      label: "publication",
+      features: [
+        "Article editor with drafts",
+        "Categories and tags",
+        "Search",
+        "Email newsletter signup",
+        "Comments",
+        "Author profiles"
+      ],
+      purpose: ["Publish regular articles", "Share documentation", "Build an audience"],
+      pages: ["Home", "Article page", "Category archive", "About", "Search results", "Subscribe"],
+      audience: ["General readers", "Professionals in the field", "Existing customers"]
+    },
+    {
+      id: "booking",
+      match: /\b(booking|reservation|appointment|scheduling|hotel|restaurant table|salon|clinic|tickets?)\b/i,
+      label: "booking",
+      features: [
+        "Availability calendar",
+        "Booking and cancellation flow",
+        "Email or SMS confirmations",
+        "Payment or deposit collection",
+        "Staff or resource management",
+        "Admin view of all bookings"
+      ],
+      purpose: ["Let customers book online", "Reduce phone bookings", "Manage staff schedules"],
+      pages: ["Home", "Availability / calendar", "Booking form", "Confirmation", "My bookings", "Admin"],
+      audience: ["Customers booking online", "Staff managing bookings"]
+    },
+    {
+      id: "productivity",
+      match: /\b(todo|to-do|task|note|notes|habit|journal|productivity|reminder|planner|kanban|project management|time tracking)\b/i,
+      label: "tracker",
+      features: [
+        "Create and organise items",
+        "Due dates and reminders",
+        "Tags or categories",
+        "Progress and streak tracking",
+        "Search and filters",
+        "Sync across devices"
+      ],
+      purpose: ["Keep myself organised", "Share with a team", "Build a daily habit"],
+      pages: ["Today", "All items", "Item detail", "Stats", "Settings"],
+      audience: ["Just me", "A small team", "Students"]
+    },
+    {
+      id: "social",
+      match: /\b(social|feed|chat|messaging|community|forum|dating|friends|followers|posts? app|comments?)\b/i,
+      label: "social app",
+      features: [
+        "Profiles",
+        "Posts and a feed",
+        "Likes and comments",
+        "Direct messages",
+        "Follow / friend requests",
+        "Notifications"
+      ],
+      purpose: ["Connect people around a topic", "Let users share updates", "Build a community"],
+      pages: ["Feed", "Profile", "Post detail", "Messages", "Notifications"],
+      audience: ["Early adopters", "A specific community"]
+    },
+    {
+      id: "health-fitness",
+      match: /\b(fitness|workout|gym|health|calorie|diet|nutrition|sleep|meditation|yoga|running|step)\b/i,
+      label: "fitness app",
+      features: [
+        "Workout logging",
+        "Progress charts",
+        "Goal setting",
+        "Reminders",
+        "Exercise library",
+        "Apple Health / Google Fit sync"
+      ],
+      purpose: ["Track workouts consistently", "Hit a specific fitness goal", "Follow a plan"],
+      audience: ["Beginners", "Regular gym-goers", "Personal trainers"]
+    },
+    {
+      id: "learning",
+      match: /\b(learn|course|lms|study|quiz|flashcard|tutor|school|student|exam|language learning)\b/i,
+      label: "learning app",
+      features: [
+        "Lessons or course modules",
+        "Quizzes and progress tracking",
+        "Spaced-repetition review",
+        "Streaks and achievements",
+        "Instructor or admin content management",
+        "Certificates"
+      ],
+      purpose: ["Teach a skill step by step", "Help students revise", "Deliver a course"],
+      audience: ["Beginner learners", "Students preparing for exams", "Professionals upskilling"]
+    },
+    {
+      id: "ai-tools",
+      match: /\b(ai|llm|gpt|chatbot|assistant|agent|prompt|rag|embedding|summari[sz]er)\b/i,
+      label: "AI tool",
+      features: [
+        "Prompt input and streaming output",
+        "Saved history or sessions",
+        "Custom system instructions",
+        "File or document upload",
+        "Multiple models to choose from",
+        "Export results"
+      ],
+      purpose: ["Automate a repetitive task", "Help users write better prompts", "Answer questions over my documents"],
+      audience: ["Just me", "My team", "Public users"]
+    },
+    {
+      id: "dashboard",
+      match: /\b(dashboard|analytics|metrics|kpi|reporting|monitor|admin panel|crm|erp)\b/i,
+      label: "dashboard",
+      features: [
+        "Charts and KPI cards",
+        "Filterable data table",
+        "Date-range comparison",
+        "CSV / Excel export",
+        "Scheduled email reports",
+        "Role-based access"
+      ],
+      purpose: ["See performance at a glance", "Replace a manual spreadsheet", "Share reports with stakeholders"],
+      pages: ["Overview", "Detail view", "Filters", "Export", "Settings"],
+      audience: ["My team", "Management", "External clients"]
+    },
+    {
+      id: "portfolio",
+      match: /\b(portfolio|personal (?:site|website)|resume site|cv site|freelance site|agency site)\b/i,
+      label: "portfolio",
+      features: [
+        "Project gallery with case studies",
+        "About page with bio",
+        "Contact form",
+        "Testimonials",
+        "Blog or writing section",
+        "Downloadable CV"
+      ],
+      purpose: ["Win freelance clients", "Apply for jobs", "Showcase my work"],
+      pages: ["Home", "Work / projects", "About", "Contact"],
+      audience: ["Potential clients", "Recruiters", "Peers in my field"]
+    }
+  ];
+  function matchDomainPacks(ctx) {
+    const haystack = `${ctx.subject.subject} ${ctx.subject.domain} ${String(ctx.fields["purpose"] ?? "")} ${String(ctx.fields["topic"] ?? "")} ${String(ctx.fields["goal"] ?? "")}`;
+    return DOMAIN_PACKS.filter((p) => p.match.test(haystack));
+  }
+  var ALL_OF_THESE = "All of these";
+  var ALL_VALUE = "__all__";
+  function withAggregate(options, allowAggregate) {
+    const cleaned = dedupe(options).filter((o) => o.trim() !== "");
+    const opts = cleaned.map((label) => ({ value: toValue(label), label }));
+    if (allowAggregate && cleaned.length >= 3) {
+      opts.push({ value: ALL_VALUE, label: ALL_OF_THESE, aggregate: true });
+    }
+    return opts;
+  }
+  function toValue(label) {
+    return label.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  }
+  function dedupe(items) {
+    const seen = /* @__PURE__ */ new Set();
+    const out = [];
+    for (const item of items) {
+      const key = item.toLowerCase().trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(item.trim());
+    }
+    return out;
+  }
+  function interpolate(template, ctx) {
+    const subject = ctx.subject.subject || ctx.subject.category || "this";
+    const domain = ctx.subject.domain || ctx.subject.subject;
+    const topic = textOf(ctx.resolved["topic"]) || textOf(ctx.resolved["goal"]) || domain;
+    const deliverable = textOf(ctx.resolved["content_type"]) || textOf(ctx.resolved["output_shape"]) || textOf(ctx.resolved["output_format"]) || ctx.subject.subject;
+    return template.replace(/\{subject\}/g, subject).replace(/\{domain\}/g, domain || "this").replace(/\{category\}/g, ctx.subject.category || "project").replace(/\{topic\}/g, topic || "this topic").replace(/\{deliverable\}/g, deliverable || "output").replace(/\bthe this\b/gi, "this").replace(/\bthis this\b/gi, "this").replace(/\s+/g, " ").trim();
+  }
+  function textOf(value) {
+    if (value === void 0) return "";
+    return Array.isArray(value) ? value[0] ?? "" : value;
+  }
+  var BANKS = {
+    // ── website ───────────────────────────────────────────────────────────────
+    "website.purpose": {
+      text: "What is the {subject} mainly for?",
+      options: [
+        "Generate leads or enquiries",
+        "Sell products or services",
+        "Showcase work or a portfolio",
+        "Publish content regularly",
+        "Provide a tool or app to users"
+      ],
+      rationale: "Purpose decides structure, copy and calls to action."
+    },
+    "website.site_type": {
+      text: "What kind of site should this be?",
+      options: [
+        "Single-page landing page",
+        "Multi-page marketing site",
+        "Blog or content site",
+        "Online store",
+        "Web app with user accounts",
+        "Documentation site"
+      ],
+      skip: (ctx) => Boolean(ctx.resolved["purpose"]),
+      rationale: "The shape of the site follows from its type."
+    },
+    "website.audience": {
+      text: "Who is the {subject} for?",
+      options: ["General consumers", "Small businesses", "Enterprise buyers", "Other developers", "A niche community"],
+      rationale: "Audience sets vocabulary, pricing framing and depth."
+    },
+    "website.pages": {
+      text: "Which pages should the {subject} include?",
+      options: ["Home", "About", "Services or features", "Pricing", "Contact", "Blog"],
+      rationale: "Page list fixes the scope of the build."
+    },
+    "website.design_direction": {
+      text: "What design direction fits?",
+      options: [
+        "Minimal and typographic",
+        "Bold and editorial",
+        "Corporate and trustworthy",
+        "Playful and colourful",
+        "Dark, premium and quiet"
+      ],
+      rationale: "Design direction changes layout, type scale and imagery."
+    },
+    "website.features": {
+      text: "Which features should the {subject} include?",
+      options: [
+        "Contact form or enquiry capture",
+        "Blog or content publishing",
+        "Search and filtering",
+        "User accounts and login",
+        "Payments or checkout",
+        "Admin dashboard",
+        "Image gallery",
+        "Testimonials",
+        "Newsletter signup",
+        "Multi-language support"
+      ],
+      rationale: "Features are the largest driver of build effort."
+    },
+    "website.tech_stack": {
+      text: "Any technology preference?",
+      options: ["Next.js + React", "Plain HTML/CSS/JS", "Astro", "WordPress", "No preference \u2014 you choose"],
+      rationale: "The stack decides what code you actually receive."
+    },
+    "website.backend": {
+      text: "Does the {subject} need a backend?",
+      options: [
+        "No \u2014 static site is fine",
+        "Yes \u2014 dynamic data and a database",
+        "Only a form endpoint / email",
+        "Not sure \u2014 recommend one"
+      ],
+      rationale: "Backend or not changes the entire architecture."
+    },
+    "website.auth": {
+      text: "How should users sign in?",
+      options: ["Email and password", "Google sign-in", "Magic link / OTP", "No login needed"],
+      rationale: "Authentication choice affects both backend and UI work."
+    },
+    "website.database": {
+      text: "Any database preference?",
+      options: ["Postgres", "Supabase", "Firebase", "SQLite", "No preference"],
+      rationale: "Data model and hosting follow from this."
+    },
+    "website.deployment": {
+      text: "Where should it be deployed?",
+      options: ["Vercel", "Netlify", "Cloudflare Pages", "AWS", "Not decided yet"],
+      optional: true
+    },
+    "website.content": {
+      text: "Do you already have the content?",
+      options: ["Yes \u2014 text and images are ready", "Partly \u2014 text only", "No \u2014 write placeholder copy", "No \u2014 write real copy for me"],
+      optional: true,
+      rationale: "Content readiness changes whether copywriting is in scope."
+    },
+    // ── software ──────────────────────────────────────────────────────────────
+    "software.purpose": {
+      text: "What should {subject} actually do?",
+      kind: "text",
+      hint: "One or two sentences is enough \u2014 the key behaviour, not the whole spec.",
+      rationale: "The core behaviour defines everything else."
+    },
+    "software.platform": {
+      text: "Where should it run?",
+      options: ["Command line", "Web browser", "Server / backend service", "Desktop app", "As a library / SDK"],
+      rationale: "Runtime decides language, packaging and testing strategy."
+    },
+    "software.features": {
+      text: "Which features should the {subject} include?",
+      options: ["Core create / read / update / delete", "Search and filtering", "Authentication", "Scheduled jobs", "Third-party integration", "Logging and monitoring"],
+      rationale: "Feature scope is the main cost driver."
+    },
+    "software.language": {
+      text: "Any language preference?",
+      options: ["TypeScript / Node", "Python", "Go", "Rust", "Java / Kotlin", "No preference"],
+      rationale: "Language determines the code you will receive."
+    },
+    "software.framework": {
+      text: "Any framework or library preference?",
+      options: ["Express / Fastify", "Next.js API routes", "FastAPI", "Django / DRF", "NestJS", "No preference"]
+    },
+    "software.constraints": {
+      text: "Any constraints to respect?",
+      options: ["No external dependencies", "Must run offline", "Must be production-ready", "Keep it minimal (prototype)", "Strict performance budget"],
+      rationale: "Constraints rule out whole classes of solution."
+    },
+    "software.interfaces": {
+      text: "How should it be accessed?",
+      options: ["REST API", "GraphQL", "CLI commands", "Webhooks", "Library imports"],
+      rationale: "The interface contract shapes the design."
+    },
+    "software.data_storage": {
+      text: "How should data be stored?",
+      options: ["Postgres", "SQLite", "MongoDB", "Files on disk", "No persistence needed"],
+      rationale: "Persistence decides schema and migration work."
+    },
+    "software.scale": {
+      text: "Roughly what scale should this handle?",
+      options: ["Personal use", "A small team", "Thousands of users", "High traffic, needs to scale"],
+      optional: true
+    },
+    "software.output_shape": {
+      text: "What should the AI deliver?",
+      options: ["Complete runnable project", "A single file", "Function-level snippets", "Architecture and plan only"],
+      rationale: "Deliverable form prevents a plan when you wanted code."
+    },
+    "software.testing": {
+      text: "Should tests be included?",
+      options: ["Yes \u2014 unit tests", "Yes \u2014 unit and integration", "No tests", "Just a quick check"],
+      optional: true
+    },
+    // ── mobile ────────────────────────────────────────────────────────────────
+    "mobile.purpose": {
+      text: "What should the {subject} do for its users?",
+      kind: "text",
+      hint: "The single job the app must do well.",
+      rationale: "The core job drives screens and data model."
+    },
+    "mobile.mobile_os": {
+      text: "Which platform(s)?",
+      options: ["iOS only", "Android only", "Both \u2014 cross-platform", "Both \u2014 native separately"],
+      rationale: "Platform choice decides the framework and store process."
+    },
+    "mobile.features": {
+      text: "Which features should the app include?",
+      options: ["Accounts and sync", "Push notifications", "Offline support", "In-app purchases", "Camera or photo upload", "Location features"],
+      rationale: "Each feature pulls in permissions and platform APIs."
+    },
+    "mobile.audience": {
+      text: "Who are the users?",
+      options: ["General consumers", "A specific professional niche", "Internal team", "Students"],
+      rationale: "Audience shapes onboarding and pricing."
+    },
+    "mobile.framework": {
+      text: "Any framework preference?",
+      options: ["React Native / Expo", "Flutter", "Native SwiftUI", "Native Kotlin / Compose", "No preference"],
+      rationale: "Framework choice decides the language, tooling and hiring pool."
+    },
+    "mobile.backend": {
+      text: "Does it need a backend?",
+      options: ["No \u2014 local storage only", "Yes \u2014 accounts and cloud sync", "Firebase / Supabase", "Not sure"],
+      rationale: "Cloud sync vs local decides cost and complexity."
+    },
+    "mobile.auth": {
+      text: "How should users sign in?",
+      options: ["Email and password", "Apple / Google sign-in", "Phone OTP", "No login needed"]
+    },
+    "mobile.notifications": {
+      text: "Are push notifications needed?",
+      options: ["Yes \u2014 reminders", "Yes \u2014 marketing", "No"],
+      optional: true
+    },
+    "mobile.store": {
+      text: "Where will it be distributed?",
+      options: ["App Store", "Play Store", "Both stores", "Internal / test only"],
+      optional: true
+    },
+    "mobile.design_direction": {
+      text: "What should it feel like?",
+      options: ["Clean and minimal", "Playful and friendly", "Dense and professional", "Dark and premium"]
+    },
+    // ── coding ────────────────────────────────────────────────────────────────
+    "coding.goal": {
+      text: "What do you need help with?",
+      options: ["Fix a bug", "Explain the code", "Write new code", "Refactor or improve it", "Review for problems", "Write tests"],
+      rationale: "The kind of help needed changes the whole answer."
+    },
+    "coding.problem": {
+      text: "What is the code or problem you are working on?",
+      kind: "text",
+      hint: "Paste the relevant code or describe the behaviour and what you expected.",
+      rationale: "Without the code, any answer is a guess."
+    },
+    "coding.language": {
+      text: "Which language or runtime?",
+      options: ["TypeScript / JavaScript", "Python", "Java / Kotlin", "Go", "Rust", "C#", "PHP / Ruby"],
+      rationale: "The answer must be in the language you actually use."
+    },
+    "coding.context": {
+      text: "What is the surrounding setup?",
+      options: ["Small script", "Framework app (React/Next/Django)", "Existing production codebase", "Just learning / exploring"],
+      rationale: "Context decides how defensive and idiomatic the answer should be."
+    },
+    "coding.error": {
+      text: "What happens when it fails?",
+      kind: "text",
+      hint: 'Error message, stack trace, or "expected X, got Y".',
+      rationale: "The exact error is the fastest route to the fix."
+    },
+    "coding.constraints": {
+      text: "Any constraints on the solution?",
+      options: ["No new dependencies", "Keep the current API", "Performance matters", "Readability over cleverness"]
+    },
+    "coding.output_shape": {
+      text: "How should the answer be shaped?",
+      options: ["Corrected code with a short explanation", "Explanation first, code after", "Just the code", "Step-by-step walkthrough"],
+      rationale: "Answer shape prevents an essay when you wanted a patch."
+    },
+    "coding.level": {
+      text: "How deep should the explanation go?",
+      options: ["Just fix it", "Explain briefly why", "Teach me the concept properly"],
+      optional: true
+    },
+    // ── writing ───────────────────────────────────────────────────────────────
+    "writing.content_type": {
+      text: "What form should this take?",
+      options: ["Blog post", "Email", "LinkedIn post", "Article", "Landing page copy", "Documentation", "Report"],
+      rationale: "Format decides structure and length expectations."
+    },
+    "writing.source_language": {
+      text: "Which language is the text in now?",
+      options: ["English", "Hindi", "Spanish", "French", "German", "Other"],
+      rationale: "Ambiguous source text is the most common translation failure."
+    },
+    "writing.register": {
+      text: "How formal should the translation read?",
+      options: ["Neutral", "Formal", "Conversational", "Legal / official", "Marketing"],
+      rationale: "Register changes word choice more than syntax."
+    },
+    "writing.topic": {
+      // Names the artifact so the question is never the generic
+      // "What exactly is it about?" — it reads as if a person asked it.
+      text: "What should the {deliverable} be about?",
+      kind: "text",
+      hint: "One line naming the subject, or the angle you want taken.",
+      rationale: "The subject is the substance of the piece."
+    },
+    "writing.audience": {
+      text: "Who is the reader?",
+      options: ["General readers", "Professionals in the field", "Beginners", "Senior decision-makers", "Existing customers"],
+      rationale: "Reading level and assumed knowledge depend on this."
+    },
+    "writing.purpose": {
+      text: "What should it achieve?",
+      options: ["Inform or explain", "Persuade", "Rank on search", "Announce news", "Build trust", "Get a reply"],
+      rationale: "Purpose determines the call to action and framing."
+    },
+    "writing.tone": {
+      text: "What tone?",
+      options: ["Professional", "Friendly and warm", "Direct and punchy", "Formal", "Playful"],
+      rationale: "Tone sets every sentence."
+    },
+    "writing.length": {
+      text: "Roughly how long?",
+      options: ["Under 300 words", "300\u2013600 words", "600\u20131,200 words", "1,200+ words"],
+      rationale: "Length determines depth and structure."
+    },
+    "writing.structure": {
+      text: "Any structural requirements?",
+      options: ["Short intro + sections", "Bullet points", "Numbered list", "TL;DR at the top", "No headings, flowing prose"]
+    },
+    "writing.must_include": {
+      text: "Anything that must be included or avoided?",
+      kind: "text",
+      hint: "Facts, names, numbers, or things to avoid saying.",
+      optional: true
+    },
+    "writing.language_out": {
+      text: "What language should it be written in?",
+      options: ["English", "Hindi", "Spanish", "French", "German"],
+      optional: true
+    },
+    // ── research ──────────────────────────────────────────────────────────────
+    "research.question": {
+      text: "What question should the research answer?",
+      kind: "text",
+      hint: "State it as a question or a decision you need to make.",
+      rationale: "A precise question is the difference between research and a listicle."
+    },
+    "research.scope": {
+      text: "What should the comparison focus on?",
+      options: ["Pricing and total cost", "Features and capability", "Ease of use", "Performance and reliability", "Ecosystem and integrations", "Security and compliance"],
+      rationale: "Criteria decide what gets compared."
+    },
+    "research.decision": {
+      text: "What decision does this feed?",
+      kind: "text",
+      hint: 'e.g. "picking a vendor this week", "writing an internal recommendation".',
+      rationale: "The decision determines the depth and format required."
+    },
+    "research.depth": {
+      text: "How deep should it go?",
+      options: ["Quick overview", "Solid working analysis", "Exhaustive deep dive"],
+      rationale: "Depth sets effort and length."
+    },
+    "research.sources": {
+      text: "Which sources should be prioritised?",
+      options: ["Official documentation", "Hands-on reviews", "Academic or peer-reviewed", "Community discussion", "Recent news and announcements"],
+      rationale: "Source preference changes what the answer can be trusted for."
+    },
+    "research.recency": {
+      text: "How recent must the information be?",
+      options: ["Last 3 months", "Last year", "Last 2\u20133 years", "No restriction"]
+    },
+    "research.geography": {
+      text: "Any market or region to focus on?",
+      options: ["Global", "India", "United States", "Europe", "Asia-Pacific"],
+      optional: true
+    },
+    "research.output_format": {
+      text: "What shape should the output take?",
+      options: ["Comparison table", "Written analysis", "Pros and cons per option", "Recommendation with reasoning", "Slide-ready summary"],
+      rationale: "Output shape decides structure."
+    },
+    // ── image ─────────────────────────────────────────────────────────────────
+    "image.subject": {
+      text: "What is the main subject of the image?",
+      kind: "text",
+      hint: 'The single most important thing that must be recognisable \u2014 e.g. "a red vintage motorcycle".',
+      rationale: "Without a clear subject, generation is a lottery."
+    },
+    "image.style": {
+      text: "What visual style should it have?",
+      options: ["Photorealistic", "Cinematic still", "Flat vector illustration", "3D render", "Watercolour", "Minimal line art", "Anime / manga"],
+      rationale: "Style drives palette, detail level and rendering."
+    },
+    "image.composition": {
+      text: "How should it be framed?",
+      options: ["Centred subject, wide background", "Close-up", "Full body / full object", "Top-down flat lay", "Wide panoramic scene"],
+      rationale: "Framing changes what fits in the frame."
+    },
+    "image.environment": {
+      text: "Where is the scene set?",
+      options: ["Studio, plain background", "Outdoors, natural setting", "Urban street", "Interior room", "Abstract or surreal"],
+      rationale: "Setting determines context and props."
+    },
+    "image.lighting": {
+      text: "What lighting or mood?",
+      options: ["Soft natural light", "Golden hour warmth", "Dramatic studio lighting", "Moody low light", "Bright and airy"],
+      rationale: "Lighting is the fastest way to change mood."
+    },
+    "image.aspect_ratio": {
+      text: "What shape and use?",
+      options: ["1:1 \u2014 social post", "16:9 \u2014 wide header or slide", "9:16 \u2014 phone or story", "4:5 \u2014 feed portrait", "A2/A3 \u2014 print poster"],
+      rationale: "Aspect ratio must match where the image will be used."
+    },
+    "image.purpose": {
+      text: "Where will this image be used?",
+      options: ["Social media post", "Website hero image", "Logo or brand mark", "Print or poster", "Presentation slide", "App or product mockup"],
+      rationale: "Intended use constrains cropping and text legibility."
+    },
+    "image.palette": {
+      text: "Any colour direction?",
+      options: ["Muted and earthy", "Vibrant and saturated", "Pastel", "Monochrome", "Brand colours"],
+      optional: true
+    },
+    "image.text_in_image": {
+      text: "Does the image need text in it?",
+      kind: "text",
+      hint: "Exact wording, or leave blank for none.",
+      optional: true
+    },
+    // ── business ──────────────────────────────────────────────────────────────
+    "business.goal": {
+      text: "What business outcome are you after?",
+      options: ["Get first customers", "Grow revenue", "Raise funding", "Launch a new product", "Enter a new market", "Reduce costs"],
+      rationale: "The outcome determines which plan is useful."
+    },
+    "business.offering": {
+      text: "What exactly are you offering?",
+      kind: "text",
+      hint: "Product or service, and who pays for it.",
+      rationale: "The offer is the unit everything else is built around."
+    },
+    "business.market": {
+      text: "Who is the target market?",
+      options: ["Small businesses (SMB)", "Enterprise", "Individual consumers", "Developers or technical buyers", "A specific industry niche"],
+      rationale: "Market choice changes pricing, channel and messaging."
+    },
+    "business.stage": {
+      text: "What stage are you at?",
+      options: ["Idea only", "Validating", "MVP built", "Launched, early revenue", "Scaling"],
+      rationale: "Stage decides whether plan or execution is the bottleneck."
+    },
+    "business.timeframe": {
+      text: "Over what timeframe?",
+      options: ["Next 30 days", "Next quarter", "Next 6 months", "This year"],
+      rationale: "A plan without a horizon is not actionable."
+    },
+    "business.budget": {
+      text: "What budget or resources exist?",
+      options: ["Bootstrapped, near zero", "A few hundred a month", "A meaningful budget", "Funded"],
+      optional: true
+    },
+    "business.constraints": {
+      text: "Any hard constraints?",
+      options: ["Solo founder, limited time", "No paid ads", "Must be compliant (regulated)", "Must not require hiring"],
+      optional: true
+    },
+    "business.output_shape": {
+      text: "What should the deliverable be?",
+      options: ["One-page strategy", "Detailed plan with milestones", "Pitch deck outline", "Positioning and messaging", "Financial model sketch"],
+      rationale: "Deliverable form prevents a vague essay."
+    },
+    // ── education ─────────────────────────────────────────────────────────────
+    "education.topic": {
+      text: "What do you want to learn or teach?",
+      kind: "text",
+      hint: "A topic, a subject area, or a specific question.",
+      rationale: "The topic is the substance of the lesson."
+    },
+    "education.level": {
+      text: "Where are you starting from?",
+      options: ["Complete beginner", "Some basics", "Comfortable, filling gaps", "Advanced, want depth"],
+      rationale: "Starting level decides vocabulary and pace."
+    },
+    "education.goal": {
+      text: "What do you want to be able to do afterwards?",
+      options: ["Understand it conceptually", "Pass an exam or interview", "Use it at work", "Teach it to someone else"],
+      rationale: "The goal decides how practice is structured."
+    },
+    "education.depth": {
+      text: "How deep should it go?",
+      options: ["Quick intuitive explanation", "Solid working understanding", "Full syllabus-level depth"],
+      rationale: "Depth decides how much detail is appropriate."
+    },
+    "education.style": {
+      text: "How do you learn best?",
+      options: ["Simple analogies", "Step-by-step with examples", "Visual diagrams", "Exercises and quizzes", "Real-world case studies"],
+      rationale: "Explanation style changes what a good answer looks like."
+    },
+    "education.timeframe": {
+      text: "How much time do you have?",
+      options: ["An hour", "A few days", "A few weeks", "No deadline"],
+      optional: true,
+      rationale: "Time budget decides whether this is a lesson or a syllabus."
+    },
+    "education.language_out": {
+      text: "What language should the explanation be in?",
+      options: ["English", "Hindi", "Spanish", "French"],
+      optional: true
+    },
+    // ── general ───────────────────────────────────────────────────────────────
+    "general.goal": {
+      text: "What would a perfect result look like?",
+      kind: "text",
+      hint: "One line on what you need, and what you would do with it.",
+      rationale: "A concrete objective is the single biggest improvement available."
+    },
+    "general.context": {
+      text: "Any context worth knowing?",
+      kind: "text",
+      hint: "Constraints, background, or who will read or use this.",
+      optional: true
+    },
+    "general.output_format": {
+      text: "How should the answer be delivered?",
+      options: ["Short prose answer", "Step-by-step", "Bullet points", "Table", "Code", "Detailed report"],
+      rationale: "Output shape prevents the wrong kind of answer."
+    },
+    "general.audience": {
+      text: "Who is this for?",
+      options: ["Just me", "My team", "A client", "Public audience", "A beginner"],
+      optional: true
+    },
+    "general.depth": {
+      text: "How deep should it go?",
+      options: ["Quick answer", "Balanced", "Thorough"],
+      optional: true
+    },
+    // ── shared ────────────────────────────────────────────────────────────────
+    "output_format": {
+      text: "How should the result be formatted?",
+      options: ["Markdown", "Plain prose", "Bullet points", "Table", "Code block", "Document"],
+      rationale: "Format decides the shape of the output."
+    },
+    "output_shape": {
+      text: "What should be delivered?",
+      options: ["A complete working artifact", "A plan or outline", "A draft to iterate on", "Direct answer only"],
+      rationale: "Deliverable form prevents the wrong level of output."
+    },
+    "deadline": {
+      text: "Is there a deadline?",
+      options: ["Today", "This week", "This month", "No deadline"],
+      optional: true
+    }
+  };
+  function bankEntry(taskType, slot) {
+    return BANKS[`${taskType}.${slot}`] ?? BANKS[slot];
+  }
+  function synthesiseOptions(spec, ctx) {
+    const allowAggregate = spec.kind === "multi";
+    const packs = matchDomainPacks(ctx);
+    const fromPacks = (key) => {
+      const out = [];
+      for (const pack of packs) {
+        const value = pack[key];
+        if (Array.isArray(value)) out.push(...value);
+      }
+      return out;
+    };
+    const entry = bankEntry(ctx.taskType, spec.id);
+    const base = entry?.options ?? [];
+    const conditional = entry?.conditionalOptions ? entry.conditionalOptions(ctx) : [];
+    switch (spec.id) {
+      case "features": {
+        const domain = fromPacks("features");
+        if (domain.length >= 3) {
+          return withAggregate([...domain.slice(0, 5), ...conditional], allowAggregate);
+        }
+        return withAggregate([...domain, ...base.slice(0, 6), ...conditional], allowAggregate);
+      }
+      case "pages":
+      case "screens": {
+        const domain = fromPacks("pages");
+        return withAggregate(domain.length > 0 ? [...domain, ...base.slice(0, 2)] : base, allowAggregate);
+      }
+      case "audience":
+      case "market": {
+        const domain = fromPacks("audience");
+        return withAggregate(domain.length > 0 ? [...domain, ...base.slice(0, 3)] : base, allowAggregate);
+      }
+      case "purpose": {
+        const domain = fromPacks("purpose");
+        return withAggregate(domain.length > 0 ? [...domain, ...base.slice(0, 3)] : base, allowAggregate);
+      }
+      default:
+        return withAggregate([...base, ...conditional], allowAggregate);
+    }
+  }
+  function kindFor(spec, entry) {
+    if (spec.kind === "text") return "text";
+    if (spec.kind === "multi") return "multi";
+    if (entry?.kind === "text") return "text";
+    return spec.kind;
+  }
+  function buildQuestion(spec, ctx) {
+    const entry = bankEntry(ctx.taskType, spec.id);
+    if (entry?.skip?.(ctx)) return null;
+    const kind = kindFor(spec, entry);
+    const optional = entry?.optional ?? spec.optional;
+    const text = interpolate(entry?.text ?? defaultQuestionText(spec, ctx), ctx);
+    if (kind === "text") {
+      return {
+        id: spec.id,
+        slot: spec.id,
+        text,
+        kind: "text",
+        options: [],
+        suggestions: textSuggestions(spec, ctx),
+        allowCustom: false,
+        optional,
+        hint: entry?.hint,
+        priority: spec.weight,
+        rationale: entry?.rationale
+      };
+    }
+    const options = synthesiseOptions(spec, ctx);
+    if (options.length < 2) return null;
+    const known = ctx.resolved[spec.id];
+    const filtered = Array.isArray(known) ? options.filter((o) => !known.some((k) => o.value.includes(toValue(String(k))))) : options;
+    return {
+      id: spec.id,
+      slot: spec.id,
+      text,
+      kind,
+      options: filtered.length >= 2 ? filtered : options,
+      suggestions: [],
+      allowCustom: true,
+      optional,
+      hint: entry?.hint,
+      condition: spec.condition,
+      priority: spec.weight,
+      rationale: entry?.rationale
+    };
+  }
+  var ARTIFACT_FRAMINGS = {
+    "cover letter": [
+      "A specific job posting",
+      "A career change with no direct experience",
+      "A promotion I want internally",
+      "A first job or internship"
+    ],
+    "blog post": [
+      "A problem my readers keep hitting",
+      "A walkthrough of how something works",
+      "An opinion backed by examples",
+      "A beginner introduction to the topic"
+    ],
+    email: ["Cold outreach", "A follow-up", "An apology or service recovery", "An announcement"],
+    report: ["Progress against a plan", "A recommendation with options", "An incident write-up", "A comparison of options"],
+    essay: ["An argument I want to make", "A personal experience", "An analysis of a text or event", "A comparison"],
+    story: ["A character-driven scene", "A twist ending", "A childhood memory", "A speculative idea"],
+    poem: ["A single image or moment", "A feeling I cannot name", "A place", "A person"],
+    "landing page": ["A single clear offer", "A product feature", "A waitlist sign-up", "A free trial"]
+  };
+  var ARTIFACT_RE = new RegExp(`\\b(${Object.keys(ARTIFACT_FRAMINGS).join("|").replace(/ /g, "\\s+")})\\b`, "i");
+  function artifactOf(ctx) {
+    const haystack = [
+      String(ctx.resolved["content_type"] ?? ""),
+      String(ctx.fields["content_type"] ?? ""),
+      ctx.subject.subject,
+      ctx.subject.domain
+    ].join(" ");
+    const match = ARTIFACT_RE.exec(haystack);
+    if (!match) return void 0;
+    const found = match[1].toLowerCase().replace(/\s+/g, " ");
+    return ARTIFACT_FRAMINGS[found] ? found : void 0;
+  }
+  function textSuggestions(spec, ctx) {
+    const out = [];
+    const subject = ctx.subject.subject || ctx.subject.domain || "";
+    const domain = ctx.subject.domain || "";
+    const artifact = artifactOf(ctx);
+    const framings = artifact ? ARTIFACT_FRAMINGS[artifact] : void 0;
+    if (framings && (spec.id === "topic" || spec.id === "purpose")) out.push(...framings);
+    if (!framings && spec.id === "topic") {
+      if (domain) {
+        out.push(`A practical introduction to ${domain}`, `${capitalise(domain)} for beginners`, `Common mistakes with ${domain}`);
+      } else if (subject) {
+        out.push(`Getting started with ${subject}`, `${capitalise(subject)}: what to know first`);
+      }
+    }
+    if (spec.id === "offering") {
+      out.push("A product I sell", "A service I deliver", "Software I am building", "Content or expertise I share");
+    }
+    if (spec.id === "question") {
+      const about = domain || subject || "this market";
+      out.push(`How big is ${about} and how fast is it growing?`, `Who are the main players in ${about}?`, `What is changing in ${about} right now?`, `Should we enter ${about}?`);
+    }
+    if (spec.id === "decision") {
+      out.push("Whether to invest at all", "How much to spend", "Which option to pick", "When to move", "Nothing yet \u2014 just understanding");
+    }
+    if (spec.id === "purpose" && out.length === 0) {
+      out.push("Make it work correctly", "Make it faster", "Make it easier to maintain", "Explain what is going wrong");
+    }
+    if (spec.id === "must_include") {
+      out.push("A concrete example", "A step-by-step walkthrough", "Numbers or data", "A short checklist", "Common pitfalls");
+    }
+    if (spec.id === "must_avoid") {
+      out.push("No jargon", "No hype or superlatives", "No pricing details", "No competitor names");
+    }
+    if (spec.id === "problem" || spec.id === "error") {
+      out.push("It crashes only in production", "It works locally but not after deploy", "The output is wrong, not missing");
+    }
+    if (spec.id === "topic") {
+      out.push("Leave it to me \u2014 you decide the angle");
+    }
+    for (const pack of matchDomainPacks(ctx)) {
+      const fromPack = pack[spec.id];
+      if (Array.isArray(fromPack)) out.push(...fromPack.filter((v) => typeof v === "string"));
+    }
+    return dedupe(out.filter((o) => o.trim() !== "")).slice(0, 4);
+  }
+  function capitalise(text) {
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+  function defaultQuestionText(spec, ctx) {
+    const label = slotLabel(ctx.taskType, spec.id).toLowerCase();
+    const subject = ctx.subject.subject || "this";
+    return `What about ${label} for ${subject}?`;
+  }
+  function buildConflictQuestion(conflicts, ctx) {
+    const first = conflicts[0];
+    if (!first) return null;
+    const options = [
+      { value: "prioritise-first", label: "Prefer the first one I mentioned" },
+      { value: "prioritise-second", label: "Prefer the second one I mentioned" },
+      { value: "balance", label: "Balance both \u2014 note the tension in the answer" }
+    ];
+    return {
+      id: `conflict-${first.id}`,
+      slot: `conflict_${first.id}`,
+      text: interpolate(first.question, ctx),
+      kind: "single",
+      options,
+      suggestions: [],
+      allowCustom: true,
+      priority: 1,
+      rationale: "Two instructions in the request pull in opposite directions."
+    };
+  }
+
+  // packages/core/src/scoring.ts
+  var GAP_THRESHOLD = 0.4;
+  var CRITICAL_THRESHOLD = 0.7;
+  var PASSTHROUGH_SCORE = 78;
+  var FACET_WEIGHTS = {
+    intentClarity: 0.2,
+    scope: 0.15,
+    functional: 0.2,
+    constraints: 0.1,
+    audience: 0.1,
+    output: 0.15,
+    technical: 0.1
+  };
+  var NUMBER_RE = /\b\d+(?:[.,]\d+)?\b/;
+  var PROPER_NOUN_RE = /\b[A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*\b/;
+  var QUOTED_RE = /["“'][^"”']{3,}["”']/;
+  var LIST_RE = /,|\band\b|\bwith\b|\bincluding\b|\bsuch as\b/i;
+  var DIRECTIVE_VERB_RE = /\b(build|create|make|write|design|develop|generate|plan|analyse|analyze|research|fix|refactor|explain|teach|compare|draft|implement|migrate|optimi[sz]e|debug|review|translate|summari[sz]e|audit|scaffold|deploy)\b/i;
+  function measureSpecificity(text) {
+    const words = wordCount(text);
+    const lengthScore = clamp(words / 28, 0, 1) * 0.55;
+    let detail = 0;
+    if (NUMBER_RE.test(text)) detail += 0.12;
+    if (PROPER_NOUN_RE.test(text)) detail += 0.1;
+    if (QUOTED_RE.test(text)) detail += 0.1;
+    if (LIST_RE.test(text)) detail += 0.08;
+    return clamp(lengthScore + detail, 0, 1);
+  }
+  function measureIntentClarity(text, classification, ambiguities, hasSubject) {
+    let score = 0.2;
+    if (DIRECTIVE_VERB_RE.test(text)) score += 0.3;
+    if (hasSubject) score += 0.25;
+    score += clamp(classification.confidence, 0, 1) * 0.25;
+    const vague = ambiguities.filter((a) => a.kind === "vague-noun" || a.kind === "hedge").length;
+    score -= vague * 0.15;
+    return clamp(score, 0, 1);
+  }
+  function isAnswered(value) {
+    if (value === void 0) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    return value.trim() !== "";
+  }
+  function facetCoverage(slots, fields) {
+    let total = 0;
+    let filled = 0;
+    for (const slot of slots) {
+      const weight = slot.weight;
+      if (weight < 0.3) continue;
+      total += weight;
+      if (isAnswered(fields[slot.id])) filled += weight;
+    }
+    return { score: total === 0 ? 1 : filled / total, total };
+  }
+  function scoreCompleteness(taskType, fields, specificity, intentClarity) {
+    const schema = schemaFor(taskType);
+    const answered = [];
+    const missing = [];
+    let coverageTotal = 0;
+    let coverageFilled = 0;
+    for (const slot of schema) {
+      if (slot.weight < 0.3) continue;
+      coverageTotal += slot.weight;
+      if (isAnswered(fields[slot.id])) {
+        coverageFilled += slot.weight;
+        answered.push(slot.id);
+      } else if (slot.weight >= GAP_THRESHOLD) {
+        missing.push(slot.id);
+      }
+    }
+    const coverage = coverageTotal === 0 ? 1 : coverageFilled / coverageTotal;
+    const facets = {};
+    const facetOf = (slots) => facetCoverage(schema.filter((s) => slots.has(s.id)), fields);
+    const scopeSlots = schema.filter((s) => s.weight >= CRITICAL_THRESHOLD);
+    const functional = facetOf(FUNCTIONAL_SLOTS);
+    const constraints = facetOf(CONSTRAINT_SLOTS);
+    const audience = facetOf(AUDIENCE_SLOTS);
+    const output = facetOf(OUTPUT_SLOTS);
+    const technical = facetOf(TECHNICAL_SLOTS);
+    const scope = facetCoverage(scopeSlots, fields);
+    facets.intentClarity = {
+      score: percent(clamp(intentClarity, 0, 1) * 100),
+      weight: FACET_WEIGHTS.intentClarity,
+      note: intentClarity >= 0.75 ? "Clear what you want" : intentClarity >= 0.45 ? "Roughly clear" : "Intent still fuzzy"
+    };
+    facets.scope = {
+      score: percent(scope.score * 100),
+      weight: FACET_WEIGHTS.scope,
+      note: scope.total === 0 ? "No scope-critical slots" : `${Math.round(scope.score * 100)}% of the essentials stated`
+    };
+    facets.functional = {
+      score: percent(functional.score * 100),
+      weight: FACET_WEIGHTS.functional,
+      note: functional.total === 0 ? "n/a" : "What it must actually do"
+    };
+    facets.constraints = {
+      score: percent(constraints.total === 0 ? 100 : constraints.score * 100),
+      weight: FACET_WEIGHTS.constraints,
+      note: constraints.total === 0 ? "No constraints apply" : "Limits and limits on the solution"
+    };
+    facets.audience = {
+      score: percent(audience.total === 0 ? 100 : audience.score * 100),
+      weight: FACET_WEIGHTS.audience,
+      note: audience.total === 0 ? "No audience slot" : "Who it is for"
+    };
+    facets.output = {
+      score: percent(output.total === 0 ? 100 : output.score * 100),
+      weight: FACET_WEIGHTS.output,
+      note: output.total === 0 ? "No output slot" : "Shape of the deliverable"
+    };
+    facets.technical = {
+      score: percent(technical.total === 0 ? 100 : technical.score * 100),
+      weight: FACET_WEIGHTS.technical,
+      note: technical.total === 0 ? "No technical slots" : "Stack and platform details"
+    };
+    const raw = 0.6 * coverage + 0.2 * clamp(specificity, 0, 1) + 0.2 * clamp(intentClarity, 0, 1);
+    return {
+      score: percent(raw * 100),
+      detected: answered,
+      missing,
+      specificity: Math.round(clamp(specificity, 0, 1) * 100) / 100,
+      intentClarity: Math.round(clamp(intentClarity, 0, 1) * 100) / 100,
+      facets
+    };
+  }
+  function findGaps(taskType, fields, ambiguities, conflicts, ignore = []) {
+    const schema = schemaFor(taskType);
+    const vagueBoost = ambiguities.some((a) => a.kind === "vague-noun") ? 0.25 : 0;
+    const gaps = [];
+    for (const slot of schema) {
+      if (slot.weight < GAP_THRESHOLD) continue;
+      if (ignore.includes(slot.id)) continue;
+      if (slot.condition) continue;
+      if (isAnswered(fields[slot.id])) continue;
+      let urgency = 1;
+      if (vagueBoost > 0 && (FUNCTIONAL_SLOTS.has(slot.id) || slot.weight >= CRITICAL_THRESHOLD)) {
+        urgency += vagueBoost;
+      }
+      if (conflicts.some((c) => c.id.includes(slot.id))) urgency += 0.2;
+      gaps.push({
+        slot: slot.id,
+        label: slot.label,
+        weight: slot.weight,
+        reason: reasonFor(slot, taskType),
+        urgency: Math.round(urgency * 100) / 100,
+        priority: Math.round(slot.weight * urgency * 1e3) / 1e3
+      });
+    }
+    return gaps.sort((a, b) => b.priority - a.priority);
+  }
+  function reasonFor(slot, taskType) {
+    const subject = taskType === "image" ? "the image" : "the answer";
+    switch (slot.id) {
+      case "purpose":
+      case "goal":
+      case "question":
+      case "subject":
+      case "topic":
+      case "problem":
+      case "offering":
+        return `This is the substance of the request \u2014 without it ${subject} can only be generic.`;
+      case "features":
+        return "Feature scope is the single biggest driver of what you get back.";
+      case "audience":
+      case "market":
+        return "Who it is for changes vocabulary, examples and depth.";
+      case "platform":
+      case "mobile_os":
+      case "site_type":
+        return "The target platform changes the whole approach.";
+      case "language":
+      case "framework":
+      case "tech_stack":
+        return "The stack determines the code you actually receive.";
+      case "backend":
+      case "data_storage":
+        return "Persistence decides architecture and hosting.";
+      case "style":
+        return "Style drives palette, detail and rendering.";
+      case "aspect_ratio":
+        return "Aspect ratio must match where the result will be used.";
+      case "output_shape":
+      case "output_format":
+        return "Output shape prevents getting a plan when you wanted an artifact.";
+      case "tone":
+        return "Tone decides how the message lands.";
+      case "length":
+        return "Length sets structure and level of detail.";
+      default:
+        return `${slot.label} materially changes the result.`;
+    }
+  }
+  function decide(input) {
+    const { completeness, gaps, ambiguities, conflicts, text } = input;
+    const reasons = [];
+    if (wordCount(text) < 2 || text.trim().length < 6) {
+      return { action: "passthrough", confidence: 0, reasons: ["Too short to analyse"], estimatedGain: 0 };
+    }
+    if (input.isGreeting) {
+      return { action: "passthrough", confidence: 0, reasons: ["Greeting or chit-chat"], estimatedGain: 0 };
+    }
+    if (input.isQuestion) {
+      return { action: "passthrough", confidence: 0, reasons: ["Direct question \u2014 answering beats clarifying"], estimatedGain: 0 };
+    }
+    const critical = gaps.filter((g) => g.weight >= CRITICAL_THRESHOLD);
+    const strongVague = ambiguities.filter((a) => a.severity >= 0.85);
+    if (conflicts.length > 0) {
+      reasons.push(`Conflicting instructions detected: ${conflicts[0].description}`);
+    }
+    if (strongVague.length > 0) {
+      reasons.push(`Vague wording (\u201C${strongVague[0].evidence}\u201D) leaves the target undefined`);
+    }
+    if (critical.length > 0) {
+      reasons.push(`Missing ${critical.map((g) => g.label.toLowerCase()).slice(0, 2).join(" and ")}`);
+    }
+    if (completeness.score < 55) {
+      reasons.push(`Only ${completeness.score}% of the requirement set is covered`);
+    }
+    const estimatedGain = clamp(
+      gaps.slice(0, 4).reduce((sum, g) => sum + g.priority, 0) / 2.4 + (conflicts.length > 0 ? 0.2 : 0) + strongVague.length * 0.1,
+      0,
+      1
+    );
+    if (completeness.score >= PASSTHROUGH_SCORE && critical.length === 0 && conflicts.length === 0) {
+      return {
+        action: "passthrough",
+        confidence: 0.9,
+        reasons: [`Request is already ${completeness.score}% specified`, "No critical gaps detected"],
+        estimatedGain
+      };
+    }
+    if (gaps.length === 0 && conflicts.length === 0) {
+      return {
+        action: "passthrough",
+        confidence: 0.85,
+        reasons: ["No material gaps detected"],
+        estimatedGain
+      };
+    }
+    if (input.questionCount === 0) {
+      return {
+        action: "passthrough",
+        confidence: 0.7,
+        reasons: ["No useful question could be formed"],
+        estimatedGain
+      };
+    }
+    const enoughToInterrupt = conflicts.length > 0 || critical.length > 0 && (strongVague.length > 0 || completeness.score < PASSTHROUGH_SCORE) || completeness.score < 62 && gaps.length >= 2 || estimatedGain >= 0.55;
+    if (!enoughToInterrupt) {
+      return {
+        action: "passthrough",
+        confidence: 0.6,
+        reasons: [...reasons, "Improvement would be marginal \u2014 not worth the interruption"],
+        estimatedGain
+      };
+    }
+    const confidence = clamp(
+      0.45 + critical.length * 0.15 + (strongVague.length > 0 ? 0.15 : 0) + (conflicts.length > 0 ? 0.15 : 0) + (completeness.score < 50 ? 0.1 : 0),
+      0,
+      1
+    );
+    return {
+      action: "clarify",
+      confidence: Math.round(confidence * 100) / 100,
+      reasons,
+      estimatedGain: Math.round(estimatedGain * 100) / 100
+    };
+  }
+  function resolvedValue(fields, answers, slot) {
+    const fromAnswers = answers[slot];
+    if (fromAnswers !== void 0 && asList(fromAnswers).length > 0) return fromAnswers;
+    return fields[slot];
+  }
+
+  // packages/core/src/compose.ts
+  var ROLE = {
+    software: "a senior software engineer",
+    website: "a senior front-end engineer and web designer",
+    mobile: "a senior mobile engineer",
+    coding: "a senior engineer pair-programming with me",
+    writing: "an experienced writer and editor",
+    research: "a rigorous research analyst",
+    image: "a professional visual artist and art director",
+    business: "a pragmatic business strategist",
+    education: "a patient, insightful tutor",
+    general: "a capable, careful assistant"
+  };
+  var SUCCESS = {
+    software: "The result is runnable, production-shaped, and respects every constraint stated above.",
+    website: "Every requested page exists, the layout is responsive, and the visual direction is applied consistently.",
+    mobile: "The core flow works end to end on the target platform and the app handles empty, loading and error states.",
+    coding: "The fix or code is correct, minimal, and explains why it works.",
+    writing: "The piece speaks to the stated reader, holds the stated tone throughout, and needs no rework to be usable.",
+    research: "Claims are specific and checkable, uncertainty is acknowledged, and the output makes the decision easier.",
+    image: "The image matches the subject, style and framing exactly, with no stray text or artefacts.",
+    business: 'The plan is sequenced, realistic under the stated constraints, and defines what "done" looks like.',
+    education: "The explanation starts from the stated level, builds intuition before detail, and includes a concrete example.",
+    general: "The answer addresses the actual objective, in the requested shape, without padding."
+  };
+  function composePrompt(input) {
+    const { original, taskType } = input;
+    const fields = input.fields;
+    const keepOriginal = input.preserveOriginal !== false;
+    const sections = [];
+    sections.push({
+      heading: "Role",
+      lines: [`You are ${ROLE[taskType]}.`, `Task type: ${taskType}.`]
+    });
+    if (keepOriginal) {
+      sections.push({
+        heading: "My request, in my own words",
+        lines: [`\u201C${squash(original)}\u201D`]
+      });
+    }
+    const taskSections = taskSpecificSections(taskType, fields, original, keepOriginal);
+    sections.push(...taskSections);
+    const shared = sharedLines(fields);
+    if (shared.length > 0) {
+      sections.push({ heading: "Shared requirements", lines: shared });
+    }
+    sections.push({ heading: "What a good result looks like", lines: [SUCCESS[taskType]] });
+    sections.push({
+      heading: "Precedence",
+      lines: [
+        "Where this brief and my original request disagree, my original request wins.",
+        "If something is still genuinely ambiguous, state your assumption in one line and proceed \u2014 do not stall."
+      ]
+    });
+    return sections.filter((s) => s.lines.filter((l) => l.trim() !== "").length > 0).map((s) => `## ${s.heading}
+${s.lines.join("\n")}`).join("\n\n");
+  }
+  var SHARED_ORDER = ["output_format", "deadline", "language_out", "budget"];
+  function sharedLines(fields) {
+    const lines = [];
+    for (const slot of SHARED_ORDER) {
+      if (slot === "budget" && fields["budget"] === void 0) continue;
+      const line = bullet(labelFor(slot), fields[slot]);
+      if (line !== "") lines.push(line);
+    }
+    return lines;
+  }
+  function labelFor(slot) {
+    const map = {
+      purpose: "Purpose",
+      site_type: "Site type",
+      audience: "Audience",
+      pages: "Pages",
+      design_direction: "Design direction",
+      features: "Features",
+      tech_stack: "Stack",
+      backend: "Backend",
+      auth: "Authentication",
+      database: "Database",
+      deployment: "Deployment",
+      content: "Content",
+      platform: "Platform",
+      language: "Language",
+      framework: "Framework",
+      constraints: "Constraints",
+      interfaces: "Interfaces",
+      data_storage: "Data storage",
+      scale: "Scale",
+      output_shape: "Deliverable",
+      testing: "Tests",
+      mobile_os: "Mobile platform",
+      notifications: "Notifications",
+      store: "Distribution",
+      goal: "Goal",
+      problem: "Problem / code",
+      context: "Context",
+      error: "Error",
+      level: "Level",
+      content_type: "Content type",
+      topic: "Topic",
+      tone: "Tone",
+      length: "Length",
+      structure: "Structure",
+      must_include: "Must include",
+      question: "Research question",
+      scope: "Scope",
+      decision: "Decision it informs",
+      depth: "Depth",
+      sources: "Sources",
+      recency: "Recency",
+      geography: "Geography",
+      output_format: "Output format",
+      subject: "Subject",
+      style: "Style",
+      composition: "Composition",
+      environment: "Environment",
+      lighting: "Lighting",
+      aspect_ratio: "Aspect ratio",
+      palette: "Palette",
+      text_in_image: "Text in image",
+      offering: "Offering",
+      market: "Market",
+      stage: "Stage",
+      timeframe: "Timeframe",
+      budget: "Budget",
+      language_out: "Output language",
+      deadline: "Deadline",
+      deliverable: "Deliverable",
+      must_avoid: "Must avoid"
+    };
+    return map[slot] ?? capitalize(slot.replace(/[_.]+/g, " "));
+  }
+  function restatesOriginal(value, original) {
+    const words = squash(value).toLowerCase().split(/[^a-z0-9']+/).filter((w) => w.length > 2);
+    if (words.length === 0) return true;
+    const source = ` ${squash(original).toLowerCase()} `;
+    const hits = words.filter((w) => source.includes(w)).length;
+    return hits / words.length >= 0.8;
+  }
+  function bullet(label, value) {
+    const list = asList(value).map((v) => squash(v)).filter((v) => v !== "");
+    if (list.length === 0) return "";
+    if (list.length === 1) return `- ${label}: ${bare(list[0])}`;
+    return `- ${label}: ${list.map((v) => bare(v)).join("; ")}`;
+  }
+  function section(heading, lines) {
+    const kept = lines.filter((l) => l.trim() !== "");
+    return kept.length > 0 ? { heading, lines: kept } : null;
+  }
+  function taskSpecificSections(taskType, f, original, keepOriginal) {
+    const out = [];
+    const add = (s) => {
+      if (s) out.push(s);
+    };
+    const showPurpose = (value) => !(keepOriginal && restatesOriginal(value, original));
+    switch (taskType) {
+      case "website":
+        add(section("What I am building", [
+          f.purpose && showPurpose(String(f.purpose)) ? `- Purpose: ${bare(String(f.purpose))}` : "",
+          bullet("Site type", f.site_type),
+          bullet("Audience", f.audience)
+        ]));
+        add(section("Pages", asList(f.pages).map((p) => `- ${bare(p)}`)));
+        add(section("Design direction", [
+          bullet("Direction", f.design_direction),
+          "The design should feel considered and consistent \u2014 real typographic hierarchy, generous spacing, no placeholder lorem that changes the layout."
+        ]));
+        add(section("Features", asList(f.features).map((x) => `- ${bare(x)}`)));
+        add(section("Technical", [
+          bullet("Stack", f.tech_stack),
+          bullet("Backend", f.backend),
+          bullet("Authentication", f.auth),
+          bullet("Database", f.database),
+          bullet("Deployment", f.deployment)
+        ]));
+        add(section("Content", [bullet("Content status", f.content)]));
+        break;
+      case "software":
+        add(section("What it must do", [
+          f.purpose && showPurpose(String(f.purpose)) ? `- ${bare(String(f.purpose))}` : ""
+        ]));
+        add(section("Functional requirements", asList(f.features).map((x) => `- ${bare(x)}`)));
+        add(section("Technical", [
+          bullet("Runtime", f.platform),
+          bullet("Language", f.language),
+          bullet("Framework", f.framework),
+          bullet("Interfaces", f.interfaces),
+          bullet("Data storage", f.data_storage),
+          bullet("Scale", f.scale)
+        ]));
+        add(section("Constraints", asList(f.constraints).map((x) => `- ${bare(x)}`)));
+        add(section("Deliverable", [
+          bullet("Form", f.output_shape),
+          bullet("Tests", f.testing)
+        ]));
+        break;
+      case "mobile":
+        add(section("What the app does", [
+          f.purpose && showPurpose(String(f.purpose)) ? `- ${bare(String(f.purpose))}` : ""
+        ]));
+        add(section("Target", [bullet("Platform", f.mobile_os), bullet("Users", f.audience)]));
+        add(section("Features", asList(f.features).map((x) => `- ${bare(x)}`)));
+        add(section("Technical", [
+          bullet("Framework", f.framework),
+          bullet("Backend", f.backend),
+          bullet("Authentication", f.auth),
+          bullet("Notifications", f.notifications),
+          bullet("Distribution", f.store)
+        ]));
+        add(section("Design direction", [bullet("Direction", f.design_direction)]));
+        break;
+      case "coding":
+        add(section("What I need", [bullet("Kind of help", f.goal), bullet("Level", f.level)]));
+        add(section("Code / problem", [f.problem ? String(f.problem) : ""]));
+        add(section("Error", [f.error ? String(f.error) : ""]));
+        add(section("Environment", [
+          bullet("Language / runtime", f.language),
+          bullet("Codebase context", f.context),
+          bullet("Constraints", f.constraints)
+        ]));
+        add(section("Answer shape", [bullet("Preferred form", f.output_shape)]));
+        break;
+      case "writing":
+        add(section("Brief", [
+          bullet("Format", f.content_type),
+          bullet("Topic", f.topic),
+          bullet("Audience", f.audience),
+          bullet("Purpose", f.purpose)
+        ]));
+        add(section("Style", [
+          bullet("Tone", f.tone),
+          bullet("Length", f.length),
+          bullet("Structure", f.structure),
+          bullet("Language", f.language_out)
+        ]));
+        add(section("Must include", [f.must_include ? String(f.must_include) : ""]));
+        break;
+      case "research":
+        add(section("Research question", [f.question ? String(f.question) : ""]));
+        add(section("Scope", [
+          bullet("Focus areas", f.scope),
+          bullet("Geography / market", f.geography),
+          bullet("Recency", f.recency),
+          bullet("Depth", f.depth)
+        ]));
+        add(section("What it informs", [f.decision ? String(f.decision) : ""]));
+        add(section("Sources and output", [
+          bullet("Preferred sources", f.sources),
+          bullet("Output shape", f.output_format)
+        ]));
+        break;
+      case "image": {
+        const description = [
+          f.subject ? bare(String(f.subject)) : "",
+          f.environment ? `setting: ${bare(String(f.environment))}` : "",
+          f.style ? `style: ${bare(String(f.style))}` : "",
+          f.composition ? `composition: ${bare(String(f.composition))}` : "",
+          f.lighting ? `lighting/mood: ${bare(String(f.lighting))}` : "",
+          f.palette ? `palette: ${bare(String(f.palette))}` : "",
+          f.aspect_ratio ? `aspect ratio: ${bare(String(f.aspect_ratio))}` : "",
+          f.purpose ? `intended use: ${bare(String(f.purpose))}` : ""
+        ].filter((x) => x !== "");
+        add(section("Image description", [description.length > 0 ? `${capitalize(description.join("; "))}.` : ""]));
+        add(section("Text in image", [f.text_in_image ? String(f.text_in_image) : ""]));
+        add(section("Avoid", [
+          "- Distorted anatomy, duplicated limbs, watermark artefacts, and garbled text."
+        ]));
+        break;
+      }
+      case "business":
+        add(section("Goal", [bullet("Outcome", f.goal), bullet("Stage", f.stage)]));
+        add(section("Offer and market", [
+          bullet("Offering", f.offering),
+          bullet("Target market", f.market)
+        ]));
+        add(section("Constraints", [
+          bullet("Timeframe", f.timeframe),
+          bullet("Budget", f.budget),
+          ...asList(f.constraints).map((x) => `- ${bare(x)}`)
+        ]));
+        add(section("Deliverable", [bullet("Form", f.output_shape)]));
+        break;
+      case "education":
+        add(section("What I want to learn", [f.topic ? String(f.topic) : ""]));
+        add(section("Starting point", [
+          bullet("Current level", f.level),
+          bullet("Goal", f.goal),
+          bullet("Time available", f.timeframe)
+        ]));
+        add(section("How to explain it", [
+          bullet("Depth", f.depth),
+          bullet("Preferred style", f.style),
+          bullet("Language", f.language_out)
+        ]));
+        break;
+      default:
+        add(section("Objective", [f.goal ? String(f.goal) : ""]));
+        add(section("Context", [f.context ? String(f.context) : ""]));
+        add(section("Expected output", [
+          bullet("Format", f.output_format),
+          bullet("Audience", f.audience),
+          bullet("Depth", f.depth)
+        ]));
+    }
+    const known = new Set(schemaFor(taskType).map((s) => s.id));
+    const extras = Object.entries(f).filter(
+      ([key, value]) => !known.has(key) && !SHARED_ORDER.includes(key) && asList(value).length > 0
+    );
+    if (extras.length > 0) {
+      add(section("Additional requirements", extras.map(([key, value]) => bullet(labelFor(key), value))));
+    }
+    return out;
+  }
+
+  // packages/core/src/engine.ts
+  var GREETING_RE = [
+    /^(hi+|hello+|hey+|yo|sup|good (morning|afternoon|evening)|namaste|hola|namaskar)\b[\s!.,]*(there|again|all|folks|friend)?[\s!.,]*$/i,
+    /^(thanks?|thank you|ty|great|awesome|perfect|ok(ay)?|cool|nice|got it|sure)\b[\s!.,]*$/i,
+    /^(who (are|am) (you|i)|what (can|are) you|what do you do|your name)\b/i
+  ];
+  var DIRECT_QUESTION_RE = [
+    /^(what|who|where|when|which)\s+(is|are|was|were)\b/i,
+    /^(who|what)\s+(did|does|do)\b/i,
+    /^(when|where)\s+(did|does|do|is|was)\b/i,
+    /^(define|meaning of|synonyms? of|antonyms? of)\b/i,
+    /^(how (do|does|can|should) (i|you|we)\b)/i,
+    /^(is|are|can|could|should|will|would|does|do|did)\s+\w[^.?!]{0,70}\?$/i,
+    /^(calculate|convert|solve|translate|what'?s)\s+[-\d(]/i,
+    /^(who|what|when|where|which|why|how)\s+\S/i,
+    /^(capital of|population of|height of|distance (from|between)|weather in)\b/i
+  ];
+  var BUILD_INTENT_RE = /\b(build|create|make|design|develop|write|generate|plan|implement|draft|compose|refactor|debug|fix)\b/i;
+  function isGreeting(text) {
+    const t = squash(text);
+    return GREETING_RE.some((re) => re.test(t));
+  }
+  function isDirectQuestion(text) {
+    const t = squash(text);
+    if (!t.endsWith("?") && !DIRECT_QUESTION_RE.some((re) => re.test(t))) return false;
+    if (wordCount(t) > 18) return false;
+    if (BUILD_INTENT_RE.test(t)) return false;
+    return DIRECT_QUESTION_RE.some((re) => re.test(t));
+  }
+  function buildRound(model, completeness, gaps, answers, options = {}) {
+    const max = Math.max(1, Math.min(6, Math.round(options.maxQuestions ?? 4)));
+    const ignore = new Set(options.ignoreSlots ?? []);
+    const round = options.round ?? 0;
+    const ctx = {
+      taskType: model.taskType,
+      subject: { subject: model.subject, domain: model.domain, category: model.subject },
+      fields: model.fields,
+      answers,
+      resolved: mergeResolved(model.fields, answers)
+    };
+    const questions = [];
+    if (round === 0 && model.conflicts.length > 0) {
+      const conflictQ = buildConflictQuestion(model.conflicts, ctx);
+      if (conflictQ) questions.push(conflictQ);
+    }
+    const ranked = gaps.filter((g) => !ignore.has(g.slot));
+    const schema = schemaFor(model.taskType);
+    const conditionalCandidates = [];
+    for (const spec of schema) {
+      if (!spec.condition) continue;
+      if (ignore.has(spec.id)) continue;
+      if (spec.weight < GAP_THRESHOLD) continue;
+      if (resolvedValue(model.fields, answers, spec.id) !== void 0) continue;
+      const trigger = resolvedValue(model.fields, answers, spec.condition.slot);
+      if (trigger === void 0) continue;
+      const triggerValues = asList(trigger).map((v) => v.toLowerCase());
+      const fires = triggerValues.some((v) => spec.condition.equals.some((e) => v.includes(e)));
+      if (!fires) continue;
+      conditionalCandidates.push({ spec, weight: spec.weight });
+    }
+    const ordered = [
+      ...ranked.map((g) => ({ slot: g.slot, weight: g.priority })),
+      ...conditionalCandidates.map((c) => ({ slot: c.spec.id, weight: c.weight }))
+    ].sort((a, b) => b.weight - a.weight);
+    for (const candidate of ordered) {
+      if (questions.length >= max) break;
+      if (questions.some((q2) => q2.slot === candidate.slot)) continue;
+      const spec = schema.find((s) => s.id === candidate.slot);
+      if (!spec) continue;
+      const q = buildQuestion(spec, ctx);
+      if (q) questions.push(q);
+    }
+    const askedSlots = new Set(questions.map((q) => q.slot));
+    const nextSlots = ranked.filter((g) => !askedSlots.has(g.slot)).slice(0, 4).map((g) => g.slot);
+    return {
+      questions,
+      hasMore: nextSlots.length > 0,
+      nextSlots,
+      completeness
+    };
+  }
+  function mergeResolved(fields, answers) {
+    return { ...fields, ...answers };
+  }
+  function analyzeRequest(text, options = {}) {
+    const original = squash(text);
+    const id = options.id ?? nextId("a");
+    const maxQuestions = Math.max(1, Math.min(6, Math.round(options.maxQuestions ?? 4)));
+    const classification = options.taskType ? { taskType: options.taskType, confidence: 0.95, signals: ["forced"] } : classifyTask(original);
+    const taskType = classification.taskType;
+    const extracted = extractRequirements(original, taskType);
+    const ambiguities = detectAmbiguities(original);
+    const conflicts = detectConflicts(original);
+    const specificity = measureSpecificity(original);
+    const intentClarity = measureIntentClarity(
+      original,
+      classification,
+      ambiguities,
+      extracted.subject.subject !== ""
+    );
+    const fields = { ...extracted.fields };
+    const completeness = scoreCompleteness(taskType, fields, specificity, intentClarity);
+    const gaps = findGaps(taskType, fields, ambiguities, conflicts, options.ignoreSlots ?? []);
+    const model = {
+      taskType,
+      intent: clip(original, 200),
+      subject: extracted.subject.subject,
+      domain: extracted.subject.domain,
+      fields,
+      detected: extracted.detected,
+      gaps,
+      ambiguities,
+      conflicts,
+      classification
+    };
+    const round = buildRound(model, completeness, gaps, {}, { maxQuestions, ignoreSlots: options.ignoreSlots });
+    const decision = decide({
+      taskType,
+      completeness,
+      gaps,
+      ambiguities,
+      conflicts,
+      classification,
+      text: original,
+      isQuestion: isDirectQuestion(original),
+      isGreeting: isGreeting(original),
+      questionCount: round.questions.length
+    });
+    const isRefinable = decision.action === "clarify";
+    return {
+      id,
+      original,
+      taskType,
+      intent: model.intent,
+      isRefinable,
+      passthroughReason: isRefinable ? void 0 : decision.reasons[0] ?? "Nothing material to clarify",
+      completeness,
+      requirements: model,
+      questions: isRefinable ? round.questions : [],
+      decision,
+      engine: "local"
+    };
+  }
+  function mergeAnswers(fields, answers) {
+    const merged = { ...fields };
+    const applied = [];
+    for (const [slot, raw] of Object.entries(answers)) {
+      const list = asList(raw).map((v) => squash(String(v))).filter((v) => v !== "");
+      if (list.length === 0) continue;
+      if (list.length === 1 && /^(no preference|doesn'?t matter|any|not sure|skip)$/i.test(list[0])) {
+        continue;
+      }
+      const value = list.length === 1 ? list[0] : list;
+      merged[slot] = value;
+      applied.push({ slot, value });
+    }
+    return { fields: merged, applied };
+  }
+  function analyzeNext(result, answers, options = {}) {
+    const { fields } = mergeAnswers(result.requirements.fields, answers);
+    const taskType = result.taskType;
+    const specificity = measureSpecificity(result.original);
+    const intentClarity = Math.min(
+      1,
+      result.completeness.intentClarity + 0.05 * Object.keys(answers).length
+    );
+    const completeness = scoreCompleteness(taskType, fields, specificity, intentClarity);
+    const ambiguities = detectAmbiguities(result.original).filter((a) => a.kind !== "vague-adjective");
+    const conflicts = result.requirements.conflicts.filter((c) => !(c.id in answers));
+    const gaps = findGaps(taskType, fields, ambiguities, conflicts);
+    const model = { ...result.requirements, fields, gaps };
+    const max = options.maxQuestions ?? Math.max(1, result.questions.length);
+    const alreadyAsked = options.askedSlots ?? result.questions.map((q) => q.slot);
+    return buildRound(model, completeness, gaps, answers, {
+      maxQuestions: max,
+      round: options.round ?? 1,
+      ignoreSlots: alreadyAsked
+    });
+  }
+  function scoreAnswers(result, answers, questionSlots = []) {
+    const { fields } = mergeAnswers(result.requirements.fields, answers);
+    const taskType = result.taskType;
+    const specificity = measureSpecificity(result.original);
+    const baseIntent = result.completeness.intentClarity;
+    const ambiguities = detectAmbiguities(result.original).filter((a) => a.kind !== "vague-adjective");
+    const conflicts = result.requirements.conflicts;
+    const currentIntent = Math.min(1, baseIntent + 0.04 * Object.keys(answers).length);
+    const current = scoreCompleteness(taskType, fields, specificity, currentIntent);
+    const assumed = { ...fields };
+    let assumedCount = 0;
+    for (const slot of questionSlots) {
+      const value = assumed[slot];
+      const filled = Array.isArray(value) ? value.length > 0 : (value ?? "").trim() !== "";
+      if (!filled) {
+        assumed[slot] = "answered";
+        assumedCount += 1;
+      }
+    }
+    const projected = scoreCompleteness(
+      taskType,
+      assumed,
+      specificity,
+      Math.min(1, baseIntent + 0.04 * (Object.keys(answers).length + assumedCount))
+    ).score;
+    const gaps = findGaps(taskType, fields, ambiguities, conflicts);
+    return {
+      current,
+      original: result.completeness.score,
+      projected: Math.max(projected, current.score),
+      missingLabels: gaps.filter((g) => g.weight >= GAP_THRESHOLD).map((g) => g.label)
+    };
+  }
+  function composeFrom(result, answers, options = {}) {
+    const { fields, applied } = mergeAnswers(result.requirements.fields, answers);
+    const taskType = result.taskType;
+    const specificity = measureSpecificity(result.original);
+    const intentClarity = Math.min(1, result.completeness.intentClarity + 0.04 * applied.length);
+    const completeness = scoreCompleteness(taskType, fields, specificity, intentClarity);
+    const ambiguities = detectAmbiguities(result.original).filter((a) => a.kind !== "vague-adjective");
+    const conflicts = result.requirements.conflicts.filter(
+      (c) => !Object.keys(answers).some((slot) => slot.includes(c.id))
+    );
+    const residualGaps = findGaps(taskType, fields, ambiguities, conflicts);
+    const prompt = composePrompt({
+      original: result.original,
+      taskType,
+      fields,
+      intent: result.intent,
+      preserveOriginal: options.preserveOriginal !== false
+    });
+    const changes = applied.map(({ slot, value }) => {
+      const label = slotLabel(taskType, slot);
+      const rendered = Array.isArray(value) ? value.join(", ") : value;
+      return `${label}: ${clip(rendered, 70)}`;
+    });
+    if (changes.length === 0) {
+      changes.push("No new details were provided \u2014 your original wording was kept as-is.");
+    }
+    return {
+      prompt,
+      completeness,
+      requirements: { ...result.requirements, fields, gaps: residualGaps, conflicts },
+      changes,
+      residualGaps
+    };
+  }
+
+  // extension/src/content/panel.css.ts
+  var PANEL_CSS = `
+/* \u2500\u2500 shell \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.overlay {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 400px;
+  max-width: calc(100vw - 28px);
+  max-height: min(80vh, 720px);
+  z-index: 2147483646;
+  display: flex;
+  flex-direction: column;
+  background: var(--st-bg);
+  color: var(--st-fg);
+  border: 1px solid var(--st-line-strong);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-raise);
+  /* overflow:hidden still allows *programmatic* scrolling, and the browser
+     scrolls the nearest scrollable ancestor into view whenever a radio inside
+     the panel receives focus \u2014 which slid the header out of the panel and left
+     an apparently blank card. overflow:clip cannot be scrolled at all; the
+     hidden declaration stays first as the fallback for older browsers. */
+  overflow: hidden;
+  overflow: clip;
+  font-family: var(--st-font);
+  font-size: var(--st-text-base);
+  letter-spacing: var(--st-tracking-body);
+  line-height: 1.5;
+  animation: st-panel-in var(--st-dur-slow) var(--st-ease) both;
+}
+@keyframes st-panel-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+.overlay.is-flash { animation: st-panel-flash 380ms var(--st-ease); }
+@keyframes st-panel-flash {
+  0%, 100% { box-shadow: var(--st-shadow-raise); }
+  45% { box-shadow: 0 0 0 3px var(--st-fg), var(--st-shadow-raise); }
+}
+
+/* \u2500\u2500 header \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 14px 12px;
+  border-bottom: 1px solid var(--st-line);
+  flex: none;
+  background: var(--st-bg);
+}
+.header__brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.header__name { font-size: 13px; font-weight: 700; letter-spacing: -0.045em; white-space: nowrap; }
+.header__task {
+  font-family: var(--st-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--st-fg-subtle);
+  border: 1px solid var(--st-line);
+  border-radius: var(--st-radius-pill);
+  padding: 2px 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 132px;
+}
+.header__spacer { flex: 1; }
+.icon-btn {
+  appearance: none; border: 0; background: transparent; color: var(--st-fg-subtle);
+  width: 26px; height: 26px; border-radius: var(--st-radius-sm);
+  display: grid; place-items: center; cursor: pointer; flex: none;
+  font-size: 15px; line-height: 1;
+  transition: background var(--st-dur-fast) var(--st-ease), color var(--st-dur-fast) var(--st-ease);
+}
+.icon-btn:hover { background: var(--st-bg-subtle); color: var(--st-fg); }
+.icon-btn:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 1px; }
+
+/* engine badge */
+.engine-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--st-font-mono);
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 3px 7px; border-radius: var(--st-radius-pill);
+  background: var(--st-accent); color: var(--st-accent-fg); flex: none;
+}
+.engine-chip--local {
+  background: transparent; color: var(--st-fg-subtle);
+  border: 1px solid var(--st-line-strong);
+}
+
+/* \u2500\u2500 body \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.body {
+  padding: 15px 14px 16px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  /* Without min-height:0 a flex child refuses to shrink below its content, so
+     a long question set (follow-up rounds) pushed the body out of the panel
+     instead of scrolling inside it. */
+  min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.body::-webkit-scrollbar { width: 7px; }
+.body::-webkit-scrollbar-thumb { background: var(--st-line-strong); border-radius: 4px; }
+
+.stage { animation: st-stage-in var(--st-dur-base) var(--st-ease) both; }
+@keyframes st-stage-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* \u2500\u2500 analyzing stage \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.analyzing { padding: 8px 0 4px; }
+.analyzing__visual {
+  position: relative;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border-radius: var(--st-radius-md);
+  background: var(--st-bg-subtle);
+  border: 1px solid var(--st-line);
+}
+.analyzing__scan {
+  position: absolute; inset: 0 12% auto;
+  height: 2px;
+  background: var(--st-fg);
+  opacity: 0.22;
+  animation: st-scan 1.9s var(--st-ease) infinite;
+}
+.analyzing__lines { display: flex; flex-direction: column; gap: 7px; width: 62%; }
+.analyzing__line {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--st-line-strong);
+  animation: st-pulse-line 1.5s ease-in-out infinite;
+}
+.analyzing__line:nth-child(1) { width: 100%; animation-delay: 0ms; }
+.analyzing__line:nth-child(2) { width: 74%; animation-delay: 140ms; }
+.analyzing__line:nth-child(3) { width: 88%; animation-delay: 280ms; }
+
+.analyzing__title {
+  font-size: 15px; font-weight: 700; letter-spacing: -0.04em; margin-bottom: 4px;
+}
+.analyzing__step { font-size: 12px; color: var(--st-fg-muted); min-height: 18px; }
+
+/* \u2500\u2500 context block \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.context { margin-bottom: 14px; }
+.context__label {
+  font-family: var(--st-font-mono); font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--st-fg-subtle); margin-bottom: 5px; display: block;
+}
+.context__quote {
+  font-size: 12.5px; line-height: 1.5; color: var(--st-fg-muted);
+  border-left: 2px solid var(--st-line-strong);
+  padding: 1px 0 1px 10px;
+  word-break: break-word;
+}
+.context__quote mark {
+  background: transparent; color: var(--st-fg); font-weight: 600;
+}
+
+/* \u2500\u2500 completeness meter \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.meter { margin: 13px 0 16px; }
+.meter__head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.meter__label {
+  font-family: var(--st-font-mono); font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--st-fg-subtle);
+}
+.meter__value {
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+.meter__track {
+  height: 3px; border-radius: 2px; background: var(--st-line); overflow: hidden;
+}
+.meter__fill {
+  height: 100%; background: var(--st-fg); border-radius: 2px;
+  transition: width var(--st-dur-slow) var(--st-ease);
+}
+.meter__facets {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-top: 7px;
+}
+.meter__facet {
+  font-size: 10px; color: var(--st-fg-faint); letter-spacing: -0.005em;
+  display: flex; align-items: center; gap: 3px;
+}
+.meter__note {
+  margin-top: 6px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--st-fg-faint);
+}
+.meter__facet b { color: var(--st-fg-muted); font-weight: 650; }
+
+/* \u2500\u2500 questions \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.round-label {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 12px;
+}
+.round-label__text {
+  font-family: var(--st-font-mono); font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--st-fg-subtle);
+}
+.round-label__rule { flex: 1; height: 1px; background: var(--st-line); }
+
+.q { margin-bottom: 17px; }
+.q[data-hidden="true"] { display: none; }
+.q__head { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3px; }
+.q__title {
+  font-size: 13px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.35; flex: 1;
+}
+.q__optional {
+  font-family: var(--st-font-mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--st-fg-faint); padding-top: 3px; flex: none;
+}
+.q__why {
+  font-size: 10.5px; color: var(--st-fg-faint); line-height: 1.45; margin-bottom: 8px;
+  letter-spacing: -0.005em;
+}
+.q__why:empty { display: none; }
+
+.opts { display: flex; flex-direction: column; gap: 5px; }
+
+.opt {
+  display: flex; align-items: center; gap: 9px;
+  border: 1px solid var(--st-line);
+  border-radius: var(--st-radius-sm);
+  padding: 8px 11px;
+  font-size: 12.5px; letter-spacing: -0.01em;
+  cursor: pointer; user-select: none;
+  background: var(--st-bg);
+  transition: border-color var(--st-dur-fast) var(--st-ease),
+              background var(--st-dur-fast) var(--st-ease);
+}
+.opt:hover { border-color: var(--st-line-strong); background: var(--st-bg-subtle); }
+.opt.is-checked { border-color: var(--st-fg); background: var(--st-bg-subtle); }
+/* The border width never changes on selection \u2014 a thicker border moved every
+   option below it by a pixel mid-click. */
+.opt.is-selected { border-color: var(--st-fg); }
+.opt.is-checked .opt__mark { background: var(--st-fg); border-color: var(--st-fg); }
+.opt.is-checked .opt__mark::after { opacity: 1; transform: scale(1); }
+.opt:focus-visible, .q:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 1px; }
+
+.opt__mark {
+  width: 14px; height: 14px; flex: none;
+  border: 1.5px solid var(--st-line-strong);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  transition: background var(--st-dur-fast) var(--st-ease), border-color var(--st-dur-fast) var(--st-ease);
+  position: relative;
+}
+.opt__mark--multi { border-radius: 4px; }
+.opt__mark::after {
+  content: ""; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--st-accent-fg);
+  opacity: 0; transform: scale(0.6);
+  transition: opacity var(--st-dur-fast) var(--st-ease), transform var(--st-dur-fast) var(--st-ease);
+}
+.opt__mark--multi::after { border-radius: 1.5px; width: 6px; height: 6px; }
+.opt__label { flex: 1; }
+.opt__tag {
+  font-family: var(--st-font-mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--st-fg-faint);
+}
+.opt--other .opt__label { color: var(--st-fg-muted); }
+
+.q__custom { margin-top: 6px; display: none; }
+.q__custom.is-open { display: block; animation: st-stage-in var(--st-dur-fast) var(--st-ease) both; }
+.q__custom input {
+  width: 100%;
+  font-family: inherit; font-size: 12.5px; letter-spacing: -0.01em;
+  color: var(--st-fg); background: var(--st-bg);
+  border: 1px solid var(--st-line); border-radius: var(--st-radius-sm);
+  padding: 8px 10px;
+}
+.q__custom input:focus { outline: none; border-color: var(--st-fg); }
+/* Quick-pick chips for free-text questions. Fill the box; do not submit. */
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 7px; }
+.chip {
+  font-family: inherit; font-size: 10.5px; line-height: 1.3; letter-spacing: -0.005em;
+  color: var(--st-fg-muted); background: var(--st-bg-subtle, transparent);
+  border: 1px solid var(--st-line); border-radius: 999px;
+  padding: 4px 9px; cursor: pointer; text-align: left;
+  transition: color var(--st-dur-fast) var(--st-ease),
+              border-color var(--st-dur-fast) var(--st-ease),
+              background-color var(--st-dur-fast) var(--st-ease);
+}
+.chip:hover { color: var(--st-fg); border-color: var(--st-fg-faint); }
+.chip:focus-visible { outline: 2px solid var(--st-fg); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .chip { transition: none; } }
+
+.q__text {
+  width: 100%; min-height: 62px; resize: vertical;
+  font-family: inherit; font-size: 12.5px; line-height: 1.5; letter-spacing: -0.01em;
+  color: var(--st-fg); background: var(--st-bg);
+  border: 1px solid var(--st-line); border-radius: var(--st-radius-sm);
+  padding: 8px 10px;
+}
+.q__text:focus { outline: none; border-color: var(--st-fg); }
+.q__hint { font-size: 10.5px; color: var(--st-fg-faint); margin-top: 5px; line-height: 1.45; }
+
+/* \u2500\u2500 conflict banner \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.conflict {
+  display: flex; gap: 9px; align-items: flex-start;
+  border: 1px solid var(--st-line);
+  border-left: 2px solid var(--st-fg);
+  border-radius: 0 var(--st-radius-sm) var(--st-radius-sm) 0;
+  background: var(--st-bg-subtle);
+  padding: 9px 11px;
+  margin-bottom: 14px;
+  font-size: 11.5px; line-height: 1.5; color: var(--st-fg-muted);
+}
+.conflict b { color: var(--st-fg); font-weight: 650; }
+
+/* \u2500\u2500 summary stage \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.summary__head { margin-bottom: 12px; }
+.summary__title { font-size: 15px; font-weight: 750; letter-spacing: -0.04em; }
+.summary__sub { font-size: 11.5px; color: var(--st-fg-muted); margin-top: 3px; line-height: 1.5; }
+.summary__list { display: flex; flex-direction: column; margin: 4px 0 14px; }
+.summary__row {
+  display: flex; gap: 10px; padding: 8px 0;
+  border-bottom: 1px solid var(--st-line);
+  font-size: 12px; line-height: 1.45;
+}
+.summary__row:first-child { border-top: 1px solid var(--st-line); }
+.summary__key {
+  flex: none; width: 108px; color: var(--st-fg-subtle);
+  font-family: var(--st-font-mono); font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.05em; padding-top: 2px;
+}
+.summary__val { flex: 1; color: var(--st-fg); word-break: break-word; }
+.summary__empty { color: var(--st-fg-faint); font-style: italic; }
+
+/* Answered vs. obtainable \u2014 two honest numbers, never one inflated one. */
+.score-frame {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0 10px;
+  font-size: 11px;
+  letter-spacing: -0.01em;
+  color: var(--st-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.score-frame__item { white-space: nowrap; }
+.score-frame__item--now { color: var(--st-fg); font-weight: 650; }
+.score-frame__item--projected { color: var(--st-fg-faint); }
+.score-frame__arrow { color: var(--st-fg-faint); }
+
+.summary__missing {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin: 10px 0 2px;
+  padding: 9px 11px;
+  border: 1px solid var(--st-line);
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--st-fg-muted);
+}
+.summary__missing-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-fg-faint);
+  white-space: nowrap;
+}
+
+/* \u2500\u2500 review stage \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.review__changes { margin: 0 0 13px; padding: 0; list-style: none; }
+.review__changes li {
+  font-size: 11.5px; color: var(--st-fg-muted); line-height: 1.45;
+  padding: 3px 0 3px 17px; position: relative;
+}
+.review__changes li::before {
+  content: "\u2713"; position: absolute; left: 0; top: 2px;
+  color: var(--st-ok); font-weight: 700; font-size: 10px;
+}
+
+.prompt-box { position: relative; }
+.prompt-box__head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+}
+.prompt-box__label {
+  font-family: var(--st-font-mono); font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--st-fg-subtle);
+}
+.prompt-box textarea {
+  width: 100%; min-height: 190px; resize: vertical;
+  font-family: var(--st-font-mono); font-size: 11px; line-height: 1.55;
+  color: var(--st-fg); background: var(--st-bg-subtle);
+  border: 1px solid var(--st-line); border-radius: var(--st-radius-md);
+  padding: 11px 12px;
+}
+.prompt-box textarea:focus { outline: none; border-color: var(--st-fg); background: var(--st-bg); }
+
+.residual {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin-top: 10px; padding: 9px 11px;
+  border-radius: var(--st-radius-sm);
+  border: 1px solid var(--st-line);
+  background: var(--st-bg-subtle);
+  font-size: 11px; line-height: 1.5; color: var(--st-fg-muted);
+}
+.residual__dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--st-fg-faint);
+  margin-top: 6px; flex: none;
+}
+.residual--ok { color: var(--st-ok); border-color: color-mix(in srgb, var(--st-ok) 30%, transparent); background: var(--st-ok-bg); }
+.residual--ok .residual__dot { background: var(--st-ok); }
+
+/* \u2500\u2500 error stage \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.err-box {
+  border: 1px solid color-mix(in srgb, var(--st-danger) 26%, transparent);
+  background: var(--st-danger-bg);
+  border-radius: var(--st-radius-md);
+  padding: 12px 13px;
+  margin-bottom: 14px;
+}
+.err-box__title {
+  font-size: 12.5px; font-weight: 700; letter-spacing: -0.02em;
+  color: var(--st-danger); margin-bottom: 4px;
+}
+.err-box__body { font-size: 11.5px; line-height: 1.55; color: var(--st-fg-muted); word-break: break-word; }
+
+/* \u2500\u2500 footer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.footer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--st-line);
+  background: var(--st-bg-subtle);
+  flex: none;
+  flex-wrap: wrap;
+}
+.footer__info {
+  font-family: var(--st-font-mono); font-size: 9.5px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--st-fg-faint);
+}
+.footer__spacer { flex: 1; }
+
+.btn {
+  appearance: none; font-family: inherit; cursor: pointer;
+  font-size: 12px; font-weight: 650; letter-spacing: -0.01em;
+  border-radius: var(--st-radius-pill);
+  padding: 8px 15px; min-height: 32px;
+  border: 1px solid var(--st-line-strong);
+  background: transparent; color: var(--st-fg);
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background var(--st-dur-fast) var(--st-ease),
+              opacity var(--st-dur-fast) var(--st-ease),
+              border-color var(--st-dur-fast) var(--st-ease);
+  white-space: nowrap;
+}
+.btn:hover { background: var(--st-bg); border-color: var(--st-fg-faint); }
+.btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+.btn:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
+.btn--primary {
+  background: var(--st-accent); color: var(--st-accent-fg); border-color: var(--st-accent);
+}
+.btn--primary:hover { background: var(--st-accent); opacity: 0.87; }
+.btn--ghost { border-color: transparent; color: var(--st-fg-muted); padding-inline: 8px; }
+.btn--ghost:hover { color: var(--st-fg); background: transparent; }
+.btn--sm { font-size: 11px; padding: 5px 11px; min-height: 26px; }
+
+.spinner {
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 1.5px solid var(--st-line-strong);
+  border-top-color: var(--st-fg);
+  animation: st-spin 620ms linear infinite;
+  flex: none;
+}
+
+/* \u2500\u2500 responsive \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+@media (max-width: 520px) {
+  .overlay {
+    right: 8px; left: 8px; bottom: 8px;
+    width: auto; max-height: 86vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .stage, .analyzing__scan, .analyzing__line, .spinner { animation: none !important; }
+  .spinner { border-top-color: var(--st-fg); }
+}
+`;
+
+  // extension/src/ui/mark.ts
+  function markSvg(options = {}) {
+    const { size = 20, animated = false, inverted = false, label, className = "" } = options;
+    const disc = inverted ? "#fff" : "var(--st-mark-disc, #000)";
+    const ink = inverted ? "#000" : "var(--st-mark-ink, #fff)";
+    const classes = ["st-mark", animated ? "st-mark--in" : "", className].filter(Boolean).join(" ");
+    const a11y = label ? `role="img" aria-label="${escapeAttr(label)}"` : 'aria-hidden="true" focusable="false"';
+    return `<svg class="${classes}" width="${size}" height="${size}" viewBox="0 0 64 64" ${a11y}
+    style="display:block;overflow:visible;flex:none">
+    <circle class="st-mark__disc" cx="32" cy="32" r="32" fill="${disc}" />
+    <text class="st-mark__ess" x="11" y="46" fill="${ink}"
+      font-family="Inter, 'Arial Black', sans-serif" font-size="34" font-weight="800">S</text>
+    <path class="st-mark__tee" d="M32 14h24M44 14v36" fill="none" stroke="${ink}"
+      stroke-width="3.2" stroke-linecap="square" />
+  </svg>`;
+  }
+  var MARK_CSS = `
+.st-mark__disc { transform-origin: 32px 32px; }
+.st-mark__ess { opacity: 0; }
+.st-mark__tee { stroke-dasharray: 80; stroke-dashoffset: 80; }
+
+.st-mark--in .st-mark__disc { animation: st-mark-pop 0.7s var(--st-ease) forwards; }
+.st-mark--in .st-mark__ess { animation: st-mark-fade 0.5s var(--st-ease) 0.35s forwards; }
+.st-mark--in .st-mark__tee { animation: st-mark-draw 0.7s var(--st-ease) 0.45s forwards; }
+
+@keyframes st-mark-pop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+@keyframes st-mark-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes st-mark-draw {
+  from { stroke-dashoffset: 80; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-mark__disc { transform: none; }
+  .st-mark__ess { opacity: 1; }
+  .st-mark__tee { stroke-dashoffset: 0; }
+  .st-mark--in .st-mark__disc,
+  .st-mark--in .st-mark__ess,
+  .st-mark--in .st-mark__tee { animation: none; }
+}
+`;
+  var MARK_DATA_URI = "data:image/svg+xml;utf8," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#000"/><text x="11" y="46" fill="#fff" font-family="Inter,Arial Black,sans-serif" font-size="34" font-weight="800">S</text><path d="M32 14h24M44 14v36" stroke="#fff" stroke-width="3.2" stroke-linecap="square" fill="none"/></svg>'
+  );
+  function escapeAttr(text) {
+    return text.replace(
+      /[&<>"']/g,
+      (c) => c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"
+    );
+  }
+
+  // extension/src/ui/tokens.ts
+  var CSS_TOKENS = `
+:host, :root {
+  /* \u2500\u2500 surfaces \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-bg: #ffffff;
+  --st-bg-subtle: #fafafa;
+  --st-bg-raised: #ffffff;
+  --st-bg-inverse: #0a0a0a;
+  --st-overlay: rgba(0, 0, 0, 0.32);
+  --st-scrim: rgba(255, 255, 255, 0.72);
+
+  /* \u2500\u2500 ink \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-fg: #000000;
+  --st-fg-muted: #525252;
+  --st-fg-subtle: #737373;
+  --st-fg-faint: #a3a3a3;
+  --st-fg-inverse: #ffffff;
+  --st-fg-inverse-muted: #737373;
+
+  /* \u2500\u2500 lines \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-line: rgba(0, 0, 0, 0.1);
+  --st-line-strong: rgba(0, 0, 0, 0.22);
+  --st-line-inverse: rgba(255, 255, 255, 0.1);
+
+  /* \u2500\u2500 semantic (used sparingly; the brand is monochrome) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-ok: #1a7f37;
+  --st-ok-bg: #f0f9f2;
+  --st-warn: #8a5a12;
+  --st-warn-bg: #fdf7ed;
+  --st-danger: #b42318;
+  --st-danger-bg: #fef3f2;
+
+  /* \u2500\u2500 accent = ink \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-accent: #000000;
+  --st-accent-fg: #ffffff;
+  --st-focus: #000000;
+
+  /* \u2500\u2500 type \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-font: Inter, "Noto Sans", "Noto Sans Devanagari", "Noto Sans SC", "Noto Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --st-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --st-tracking-body: -0.02em;
+  --st-tracking-heading: -0.05em;
+  --st-tracking-label: 0.1em;
+
+  --st-text-xs: 11px;
+  --st-text-sm: 12px;
+  --st-text-base: 13px;
+  --st-text-md: 14px;
+  --st-text-lg: 16px;
+  --st-text-xl: 20px;
+  --st-text-2xl: 26px;
+
+  /* \u2500\u2500 geometry \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-radius-pill: 999px;
+  --st-radius-lg: 14px;
+  --st-radius-md: 10px;
+  --st-radius-sm: 7px;
+
+  --st-space-1: 4px;
+  --st-space-2: 8px;
+  --st-space-3: 12px;
+  --st-space-4: 16px;
+  --st-space-5: 20px;
+  --st-space-6: 24px;
+  --st-space-8: 32px;
+  --st-space-10: 40px;
+
+  /* \u2500\u2500 motion (matches the site's cubic-bezier(.16,1,.3,1)) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --st-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --st-dur-fast: 120ms;
+  --st-dur-base: 200ms;
+  --st-dur-slow: 420ms;
+
+  /* \u2500\u2500 elevation: hairline-first, never a heavy drop shadow \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+  --st-shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px -8px rgba(0, 0, 0, 0.18);
+  --st-shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.06), 0 24px 60px -16px rgba(0, 0, 0, 0.28);
+}
+
+/* \u2500\u2500 dark theme \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+   The site's own dark surface is #0A0A0A with #737373 muted text; the dark
+   theme is that surface extended, not a separate palette. */
+:host([data-theme="dark"]), :root[data-theme="dark"] {
+  --st-bg: #0a0a0a;
+  --st-bg-subtle: #131313;
+  --st-bg-raised: #161616;
+  --st-bg-inverse: #ffffff;
+  --st-fg: #f5f5f5;
+  --st-fg-muted: #a3a3a3;
+  --st-fg-subtle: #8a8a8a;
+  --st-fg-faint: #666666;
+  --st-fg-inverse: #0a0a0a;
+  --st-fg-inverse-muted: #737373;
+  --st-line: rgba(255, 255, 255, 0.12);
+  --st-line-strong: rgba(255, 255, 255, 0.26);
+  --st-line-inverse: rgba(0, 0, 0, 0.1);
+  --st-accent: #ffffff;
+  --st-accent-fg: #0a0a0a;
+  --st-focus: #ffffff;
+  --st-ok: #4ac26b;
+  --st-ok-bg: rgba(26, 127, 55, 0.14);
+  --st-warn: #e3b341;
+  --st-warn-bg: rgba(138, 90, 18, 0.18);
+  --st-danger: #ff7b72;
+  --st-danger-bg: rgba(180, 35, 24, 0.16);
+  --st-scrim: rgba(10, 10, 10, 0.72);
+  --st-shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -8px rgba(0, 0, 0, 0.7);
+  --st-shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.6), 0 24px 60px -16px rgba(0, 0, 0, 0.8);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host, :root {
+    --st-dur-fast: 0ms;
+    --st-dur-base: 0ms;
+    --st-dur-slow: 0ms;
+  }
+}
+`;
+  var CSS_BASE = `
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--st-bg);
+  color: var(--st-fg);
+  font-family: var(--st-font);
+  font-size: var(--st-text-base);
+  letter-spacing: var(--st-tracking-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: var(--st-tracking-heading);
+  line-height: 1.05;
+}
+p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+
+/* Eyebrow label \u2014 the site's .mono.k */
+.st-eyebrow {
+  font-family: var(--st-font-mono);
+  font-size: var(--st-text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--st-tracking-label);
+  color: var(--st-fg-muted);
+  font-weight: 500;
+}
+
+.st-h1 { font-size: var(--st-text-2xl); font-weight: 800; letter-spacing: -0.06em; line-height: 0.92; }
+.st-h2 { font-size: var(--st-text-xl); font-weight: 700; letter-spacing: var(--st-tracking-heading); }
+.st-h3 { font-size: var(--st-text-lg); font-weight: 700; letter-spacing: -0.03em; }
+.st-muted { color: var(--st-fg-muted); }
+.st-subtle { color: var(--st-fg-subtle); font-size: var(--st-text-sm); line-height: 1.5; }
+
+/* Hairline \u2014 the site's structural device */
+.st-rule { height: 1px; background: var(--st-line); border: 0; margin: 0; }
+
+/* \u2500\u2500 buttons \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.st-btn {
+  appearance: none;
+  border: 1px solid var(--st-line-strong);
+  background: transparent;
+  color: var(--st-fg);
+  font-family: inherit;
+  font-size: var(--st-text-base);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border-radius: var(--st-radius-pill);
+  padding: 9px 18px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  transition: background var(--st-dur-fast) var(--st-ease),
+              color var(--st-dur-fast) var(--st-ease),
+              border-color var(--st-dur-fast) var(--st-ease),
+              opacity var(--st-dur-fast) var(--st-ease);
+  white-space: nowrap;
+}
+.st-btn:hover { background: var(--st-bg-subtle); border-color: var(--st-fg-faint); }
+.st-btn:active { transform: translateY(0.5px); }
+.st-btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+.st-btn:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
+
+.st-btn--primary {
+  background: var(--st-accent);
+  color: var(--st-accent-fg);
+  border-color: var(--st-accent);
+}
+.st-btn--primary:hover { background: var(--st-accent); opacity: 0.86; border-color: var(--st-accent); }
+
+.st-btn--ghost { border-color: transparent; color: var(--st-fg-muted); padding-inline: 10px; }
+.st-btn--ghost:hover { color: var(--st-fg); background: var(--st-bg-subtle); }
+
+.st-btn--danger { color: var(--st-danger); border-color: var(--st-line); }
+.st-btn--danger:hover { background: var(--st-danger-bg); border-color: var(--st-danger); }
+
+.st-btn--sm { font-size: var(--st-text-sm); padding: 6px 13px; min-height: 30px; }
+.st-btn--block { width: 100%; }
+
+/* \u2500\u2500 inputs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.st-input, .st-select, .st-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--st-text-base);
+  letter-spacing: var(--st-tracking-body);
+  color: var(--st-fg);
+  background: var(--st-bg);
+  border: 1px solid var(--st-line);
+  border-radius: var(--st-radius-md);
+  padding: 9px 11px;
+  transition: border-color var(--st-dur-fast) var(--st-ease), box-shadow var(--st-dur-fast) var(--st-ease);
+}
+.st-input::placeholder, .st-textarea::placeholder { color: var(--st-fg-faint); }
+.st-input:focus, .st-select:focus, .st-textarea:focus {
+  outline: none;
+  border-color: var(--st-fg);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+:root[data-theme="dark"] .st-input:focus,
+:root[data-theme="dark"] .st-select:focus,
+:root[data-theme="dark"] .st-textarea:focus,
+:host([data-theme="dark"]) .st-input:focus {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+.st-textarea { resize: vertical; line-height: 1.55; min-height: 80px; }
+.st-select { cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% + 1px), calc(100% - 11px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+}
+
+.st-field { display: flex; flex-direction: column; gap: 6px; }
+.st-field__label { font-size: var(--st-text-sm); font-weight: 650; color: var(--st-fg); letter-spacing: -0.01em; }
+.st-field__hint { font-size: var(--st-text-xs); color: var(--st-fg-subtle); line-height: 1.5; }
+
+/* \u2500\u2500 chips \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.st-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--st-text-xs);
+  font-weight: 650;
+  font-family: var(--st-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: var(--st-radius-pill);
+  border: 1px solid var(--st-line);
+  color: var(--st-fg-muted);
+  background: var(--st-bg);
+  white-space: nowrap;
+}
+.st-chip--solid { background: var(--st-accent); color: var(--st-accent-fg); border-color: var(--st-accent); }
+.st-chip--ok { color: var(--st-ok); border-color: color-mix(in srgb, var(--st-ok) 35%, transparent); background: var(--st-ok-bg); }
+.st-chip--warn { color: var(--st-warn); border-color: color-mix(in srgb, var(--st-warn) 35%, transparent); background: var(--st-warn-bg); }
+.st-chip--danger { color: var(--st-danger); border-color: color-mix(in srgb, var(--st-danger) 35%, transparent); background: var(--st-danger-bg); }
+
+.st-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+
+/* \u2500\u2500 utility \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.st-row { display: flex; align-items: center; gap: var(--st-space-2); }
+.st-spacer { flex: 1; }
+.st-stack { display: flex; flex-direction: column; }
+.st-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@keyframes st-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes st-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes st-spin { to { transform: rotate(360deg); } }
+@keyframes st-draw { to { stroke-dashoffset: 0; } }
+@keyframes st-pop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes st-scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  20% { opacity: 0.5; }
+  100% { transform: translateY(400%); opacity: 0; }
+}
+@keyframes st-pulse-line {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+`;
+
+  // extension/src/content/panel.ts
+  var ANALYZE_STEPS = [
+    "Reading your request\u2026",
+    "Detecting the task category\u2026",
+    "Finding missing requirements\u2026",
+    "Checking for ambiguity\u2026",
+    "Writing questions\u2026"
+  ];
+  var ClarifyPanel = class {
+    constructor(cb) {
+      this.cb = cb;
+      this.host = document.createElement("div");
+      this.host.id = "second-thought-panel";
+      this.root = this.host.attachShadow({ mode: "closed" });
+      this.askedSlots = cb.result.questions.map((q) => q.slot);
+    }
+    host;
+    root;
+    stage = "analyzing";
+    stageEl = null;
+    bodyEl;
+    footerEl;
+    questions = [];
+    answers = {};
+    askedSlots = [];
+    round = 0;
+    outcome = null;
+    scoreFrameEl = null;
+    missingNoteEl = null;
+    lastScore = null;
+    busy = false;
+    stepTimer = null;
+    theme = "light";
+    get isOpen() {
+      return this.host.isConnected;
+    }
+    isAttached() {
+      return this.host.isConnected;
+    }
+    /** Nudge the panel when the user presses send again while it is open. */
+    flash() {
+      const overlay = this.root.querySelector(".overlay");
+      if (!overlay) return;
+      overlay.classList.remove("is-flash");
+      void overlay.offsetWidth;
+      overlay.classList.add("is-flash");
+    }
+    open() {
+      const style = document.createElement("style");
+      style.textContent = `${CSS_TOKENS}
+${CSS_BASE}
+${MARK_CSS}
+${PANEL_CSS}`;
+      this.root.appendChild(style);
+      this.theme = prefersDark() ? "dark" : "light";
+      const overlay = document.createElement("div");
+      overlay.className = "overlay";
+      overlay.dataset["theme"] = this.theme;
+      if (this.theme === "dark") overlay.setAttribute("data-theme", "dark");
+      overlay.setAttribute("role", "dialog");
+      overlay.setAttribute("aria-label", "Second Thought \u2014 complete your request");
+      overlay.setAttribute("aria-modal", "false");
+      overlay.appendChild(this.buildHeader());
+      this.bodyEl = document.createElement("div");
+      this.bodyEl.className = "body";
+      overlay.appendChild(this.bodyEl);
+      this.footerEl = document.createElement("div");
+      this.footerEl.className = "footer";
+      overlay.appendChild(this.footerEl);
+      this.root.appendChild(overlay);
+      document.documentElement.appendChild(this.host);
+      document.addEventListener("keydown", this.onKeydown, true);
+      this.renderAnalyzing();
+      void this.advanceFromAnalyzing();
+    }
+    dispose() {
+      document.removeEventListener("keydown", this.onKeydown, true);
+      if (this.stepTimer !== null) window.clearInterval(this.stepTimer);
+      this.stepTimer = null;
+      this.host.remove();
+    }
+    onKeydown = (evt) => {
+      if (evt.key !== "Escape") return;
+      evt.stopPropagation();
+      evt.preventDefault();
+      this.handleDismiss();
+    };
+    // ── header ───────────────────────────────────────────────────────────────
+    buildHeader() {
+      const header = document.createElement("div");
+      header.className = "header";
+      const brand = document.createElement("div");
+      brand.className = "header__brand";
+      const markHost = document.createElement("span");
+      markHost.style.display = "flex";
+      markHost.innerHTML = markSvg({ size: 17, animated: true });
+      const name = document.createElement("span");
+      name.className = "header__name";
+      name.textContent = "Second Thought";
+      brand.append(markHost, name);
+      const task = document.createElement("span");
+      task.className = "header__task";
+      task.textContent = taskShortLabel(this.cb.result.taskType);
+      task.title = taskLabel(this.cb.result.taskType);
+      const chip = document.createElement("span");
+      const isAi = this.cb.engine === "ai";
+      chip.className = `engine-chip${isAi ? "" : " engine-chip--local"}`;
+      chip.textContent = isAi ? "AI" : "Local";
+      chip.title = isAi ? "Questions generated with your configured AI provider" : "Questions generated on-device by the local requirement engine";
+      const spacer = document.createElement("div");
+      spacer.className = "header__spacer";
+      const close = document.createElement("button");
+      close.className = "icon-btn";
+      close.setAttribute("aria-label", "Close and keep my draft unchanged");
+      close.textContent = "\u2715";
+      close.addEventListener("click", () => this.handleDismiss());
+      header.append(brand, task, chip, spacer, close);
+      return header;
+    }
+    // ── stage: analyzing ─────────────────────────────────────────────────────
+    renderAnalyzing() {
+      this.stage = "analyzing";
+      this.bodyEl.textContent = "";
+      this.footerEl.textContent = "";
+      const wrap = document.createElement("div");
+      wrap.className = "analyzing stage";
+      const visual = document.createElement("div");
+      visual.className = "analyzing__visual";
+      const scan = document.createElement("div");
+      scan.className = "analyzing__scan";
+      const lines = document.createElement("div");
+      lines.className = "analyzing__lines";
+      for (let i = 0; i < 3; i += 1) {
+        const line = document.createElement("div");
+        line.className = "analyzing__line";
+        lines.appendChild(line);
+      }
+      visual.append(scan, lines);
+      const title = document.createElement("div");
+      title.className = "analyzing__title";
+      title.textContent = "Taking a second thought";
+      const step = document.createElement("div");
+      step.className = "analyzing__step";
+      step.textContent = ANALYZE_STEPS[0];
+      wrap.append(visual, title, step);
+      this.bodyEl.appendChild(wrap);
+      let index = 0;
+      this.stepTimer = window.setInterval(() => {
+        index = (index + 1) % ANALYZE_STEPS.length;
+        step.textContent = ANALYZE_STEPS[index] ?? ANALYZE_STEPS[0];
+      }, 620);
+      const skip = document.createElement("button");
+      skip.className = "btn btn--ghost";
+      skip.textContent = "Skip";
+      skip.addEventListener("click", () => {
+        if (this.stepTimer !== null) window.clearInterval(this.stepTimer);
+        this.stepTimer = null;
+        this.startClarify();
+      });
+      const info = document.createElement("span");
+      info.className = "footer__info";
+      info.textContent = this.cb.engine === "ai" ? "AI analysis" : "On-device";
+      this.footerEl.append(info, spacerEl(), skip);
+    }
+    async advanceFromAnalyzing() {
+      await new Promise((resolve) => setTimeout(resolve, 420));
+      if (!this.host.isConnected) return;
+      if (this.stepTimer !== null) {
+        window.clearInterval(this.stepTimer);
+        this.stepTimer = null;
+      }
+      if (this.stage !== "analyzing") return;
+      this.startClarify();
+    }
+    // ── stage: clarify ───────────────────────────────────────────────────────
+    startClarify() {
+      if (this.cb.fallback) this.renderFallbackNote();
+      this.renderClarify(this.cb.result.questions, false);
+    }
+    renderFallbackNote() {
+      const fallback = this.cb.fallback;
+      if (!fallback || fallback.message === "") return;
+      const note = document.createElement("div");
+      note.className = "conflict";
+      const strong = document.createElement("b");
+      strong.textContent = "Local analysis. ";
+      note.append(strong, document.createTextNode(fallback.message));
+      this.bodyEl.appendChild(note);
+    }
+    renderClarify(questions, isFollowUp) {
+      this.stage = "clarify";
+      this.bodyEl.textContent = "";
+      this.footerEl.textContent = "";
+      this.questions = [];
+      if (this.cb.fallback && !isFollowUp) this.renderFallbackNote();
+      this.bodyEl.appendChild(this.buildContext());
+      this.bodyEl.appendChild(
+        this.buildMeter(
+          this.cb.result.completeness.score,
+          isFollowUp ? "First-round answers counted. These second-round questions are not yet included." : void 0
+        )
+      );
+      this.bodyEl.appendChild(this.buildRoundLabel(isFollowUp, questions.length));
+      for (const question of questions) {
+        const el = this.buildQuestion(question);
+        this.questions.push(el);
+        this.bodyEl.appendChild(el.root);
+      }
+      this.syncConditionalVisibility();
+      this.renderQuestionFooter();
+    }
+    buildContext() {
+      const wrap = document.createElement("div");
+      wrap.className = "context";
+      const label = document.createElement("span");
+      label.className = "context__label";
+      label.textContent = "Your request";
+      const quote = document.createElement("div");
+      quote.className = "context__quote";
+      quote.textContent = truncate(this.cb.result.original, 180);
+      wrap.append(label, quote);
+      return wrap;
+    }
+    buildMeter(score, note) {
+      const wrap = document.createElement("div");
+      wrap.className = "meter";
+      const head = document.createElement("div");
+      head.className = "meter__head";
+      const label = document.createElement("span");
+      label.className = "meter__label";
+      label.textContent = "Requirement completeness";
+      const value = document.createElement("span");
+      value.className = "meter__value";
+      value.textContent = `${score}%`;
+      head.append(label, value);
+      const track = document.createElement("div");
+      track.className = "meter__track";
+      const fill = document.createElement("div");
+      fill.className = "meter__fill";
+      fill.style.width = `${score}%`;
+      track.appendChild(fill);
+      wrap.append(head, track);
+      const facets = this.cb.result.completeness.facets;
+      const shown = [
+        ["Intent", facets.intentClarity.score],
+        ["Scope", facets.scope.score],
+        ["Function", facets.functional.score],
+        ["Output", facets.output.score]
+      ];
+      const row = document.createElement("div");
+      row.className = "meter__facets";
+      for (const [name, facetScore] of shown) {
+        const item = document.createElement("span");
+        item.className = "meter__facet";
+        const b = document.createElement("b");
+        b.textContent = `${facetScore}`;
+        item.append(document.createTextNode(`${name} `), b);
+        row.appendChild(item);
+      }
+      wrap.appendChild(row);
+      if (note) {
+        const noteEl = document.createElement("div");
+        noteEl.className = "meter__note";
+        noteEl.textContent = note;
+        wrap.appendChild(noteEl);
+      }
+      return wrap;
+    }
+    buildRoundLabel(isFollowUp, count) {
+      const wrap = document.createElement("div");
+      wrap.className = "round-label";
+      const text = document.createElement("span");
+      text.className = "round-label__text";
+      text.textContent = isFollowUp ? `Follow-up \xB7 ${count} question${count === 1 ? "" : "s"}` : `${count} question${count === 1 ? "" : "s"} \xB7 answer what you can`;
+      const rule = document.createElement("span");
+      rule.className = "round-label__rule";
+      wrap.append(text, rule);
+      return wrap;
+    }
+    buildQuestion(question) {
+      const root = document.createElement("div");
+      root.className = "q";
+      root.dataset["slot"] = question.slot;
+      root.dataset["hidden"] = "false";
+      const head = document.createElement("div");
+      head.className = "q__head";
+      const title = document.createElement("div");
+      title.className = "q__title";
+      title.id = `st-q-${question.slot}`;
+      title.textContent = question.text;
+      head.appendChild(title);
+      if (question.optional) {
+        const tag = document.createElement("span");
+        tag.className = "q__optional";
+        tag.textContent = "Optional";
+        head.appendChild(tag);
+      }
+      root.appendChild(head);
+      const why = document.createElement("div");
+      why.className = "q__why";
+      why.textContent = question.rationale ?? "";
+      root.appendChild(why);
+      const radios = [];
+      let customWrap = null;
+      let customInput = null;
+      let textInput = null;
+      if (question.kind === "text") {
+        const suggestions = question.suggestions ?? [];
+        if (suggestions.length > 0) {
+          const chips = document.createElement("div");
+          chips.className = "chips";
+          chips.setAttribute("role", "group");
+          chips.setAttribute("aria-label", "Suggested answers \u2014 tap to use");
+          for (const suggestion of suggestions) {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "chip";
+            chip.textContent = suggestion;
+            chip.addEventListener("click", (event) => {
+              event.preventDefault();
+              if (textInput) {
+                textInput.value = suggestion;
+                textInput.focus();
+                textInput.setSelectionRange(suggestion.length, suggestion.length);
+                this.updateFooterState();
+              }
+            });
+            chips.appendChild(chip);
+          }
+          root.appendChild(chips);
+        }
+        textInput = document.createElement("textarea");
+        textInput.className = "q__text";
+        textInput.rows = 2;
+        textInput.placeholder = question.hint ?? "Type your answer\u2026";
+        textInput.setAttribute("aria-labelledby", title.id);
+        textInput.addEventListener("input", () => this.updateFooterState());
+        root.appendChild(textInput);
+        if (question.hint) {
+          const hint = document.createElement("div");
+          hint.className = "q__hint";
+          hint.textContent = question.hint;
+          root.appendChild(hint);
+        }
+      } else {
+        const opts = document.createElement("div");
+        opts.className = "opts";
+        opts.setAttribute("role", question.kind === "multi" ? "group" : "radiogroup");
+        opts.setAttribute("aria-labelledby", title.id);
+        const name = `st-${this.cb.analysisId}-${question.slot}`;
+        for (const option of question.options) {
+          const { label, input } = this.buildOption({
+            question,
+            name,
+            value: option.value,
+            text: option.label,
+            tag: option.aggregate ? "all" : void 0
+          });
+          input.addEventListener("change", () => {
+            root.tabIndex = -1;
+            root.focus({ preventScroll: true });
+            this.syncCheckedStyles(root);
+            this.closeCustom(customWrap, customInput);
+            this.syncConditionalVisibility();
+            this.updateFooterState();
+          });
+          radios.push(input);
+          opts.appendChild(label);
+        }
+        if (question.allowCustom) {
+          const other = this.buildOption({
+            question,
+            name,
+            value: "__other__",
+            text: "Other \u2014 type my own",
+            other: true
+          });
+          other.input.addEventListener("change", () => {
+            this.syncCheckedStyles(root);
+            if (customWrap && customInput) {
+              const open = other.input.checked;
+              customWrap.classList.toggle("is-open", open);
+              if (open) customInput.focus();
+              else customInput.value = "";
+            }
+            this.updateFooterState();
+          });
+          radios.push(other.input);
+          opts.appendChild(other.label);
+          customWrap = document.createElement("div");
+          customWrap.className = "q__custom";
+          customInput = document.createElement("input");
+          customInput.type = "text";
+          customInput.placeholder = "Your answer\u2026";
+          customInput.setAttribute("aria-label", `Custom answer for: ${question.text}`);
+          customInput.addEventListener("input", () => this.updateFooterState());
+          customWrap.appendChild(customInput);
+        }
+        root.appendChild(opts);
+        if (customWrap) root.appendChild(customWrap);
+      }
+      return { slot: question.slot, root, question, radios, customWrap, customInput, textInput };
+    }
+    buildOption(args) {
+      const label = document.createElement("label");
+      label.className = `opt${args.other ? " opt--other" : ""}`;
+      const input = document.createElement("input");
+      input.type = args.question.kind === "multi" ? "checkbox" : "radio";
+      input.name = args.name;
+      input.value = args.value;
+      input.className = "st-sr";
+      input.tabIndex = -1;
+      if (args.question.kind === "multi") input.dataset["multi"] = "true";
+      const mark = document.createElement("span");
+      mark.className = `opt__mark${args.question.kind === "multi" ? " opt__mark--multi" : ""}`;
+      const text = document.createElement("span");
+      text.className = "opt__label";
+      text.textContent = args.text;
+      label.append(input, mark, text);
+      if (args.tag) {
+        const tag = document.createElement("span");
+        tag.className = "opt__tag";
+        tag.textContent = args.tag;
+        label.appendChild(tag);
+      }
+      return { label, input };
+    }
+    closeCustom(wrap, input) {
+      if (!wrap || !input) return;
+      wrap.classList.remove("is-open");
+      input.value = "";
+    }
+    syncCheckedStyles(root) {
+      for (const label of Array.from(root.querySelectorAll(".opt"))) {
+        const input = label.querySelector("input");
+        const checked = Boolean(input?.checked);
+        label.classList.toggle("is-checked", checked);
+        label.classList.toggle("is-selected", checked);
+      }
+    }
+    /** Show questions whose `condition` is satisfied by the current answers. */
+    syncConditionalVisibility() {
+      const current = this.collectAnswers();
+      for (const q of this.questions) {
+        const condition = q.question.condition;
+        if (!condition) {
+          q.root.dataset["hidden"] = "false";
+          continue;
+        }
+        const trigger = current[condition.slot];
+        const values = trigger === void 0 ? [] : Array.isArray(trigger) ? trigger : [trigger];
+        const satisfied = values.some(
+          (v) => condition.equals.some((expected) => String(v).toLowerCase().includes(expected.toLowerCase()))
+        );
+        q.root.dataset["hidden"] = String(!satisfied);
+        if (!satisfied) {
+          for (const input of q.radios) input.checked = false;
+          if (q.textInput) q.textInput.value = "";
+          if (q.customInput) q.customInput.value = "";
+          this.syncCheckedStyles(q.root);
+        }
+      }
+    }
+    visibleQuestions() {
+      return this.questions.filter((q) => q.root.dataset["hidden"] !== "true");
+    }
+    collectAnswers() {
+      const answers = {};
+      for (const q of this.visibleQuestions()) {
+        if (q.textInput) {
+          const value = q.textInput.value.trim();
+          if (value !== "") answers[q.slot] = value;
+          continue;
+        }
+        const checked = q.radios.filter((input) => input.checked);
+        if (checked.length === 0) continue;
+        const values = [];
+        for (const input of checked) {
+          if (input.value === "__other__") {
+            const custom = q.customInput?.value.trim() ?? "";
+            if (custom !== "") values.push(custom);
+          } else {
+            values.push(input.value);
+          }
+        }
+        if (values.length === 0) continue;
+        answers[q.slot] = q.question.kind === "multi" ? values : values[0];
+      }
+      return answers;
+    }
+    updateFooterState() {
+      const next = this.footerEl.querySelector('[data-action="next"]');
+      const count = Object.keys(this.collectAnswers()).length;
+      if (next) next.disabled = this.busy || count === 0;
+      const info = this.footerEl.querySelector('[data-role="progress"]');
+      if (!info) return;
+      const total = this.visibleQuestions().length;
+      info.textContent = count === 0 ? `${total} to answer` : `${count} of ${total} answered`;
+    }
+    renderQuestionFooter() {
+      this.footerEl.textContent = "";
+      const info = document.createElement("span");
+      info.className = "footer__info";
+      info.dataset["role"] = "progress";
+      this.updateFooterState();
+      const skipAll = document.createElement("button");
+      skipAll.className = "btn btn--ghost";
+      skipAll.textContent = "Send original";
+      skipAll.title = "Send your message exactly as you typed it";
+      skipAll.addEventListener("click", () => this.handleSendOriginal());
+      const next = document.createElement("button");
+      next.className = "btn btn--primary";
+      next.dataset["action"] = "next";
+      next.textContent = this.round === 0 ? "Continue" : "Build prompt";
+      next.disabled = true;
+      next.addEventListener("click", () => void this.handleContinue(next));
+      this.footerEl.append(info, spacerEl(), skipAll, next);
+      this.updateFooterState();
+    }
+    // ── continue: adaptive round or summary ──────────────────────────────────
+    async handleContinue(button) {
+      if (this.busy) return;
+      const answers = this.collectAnswers();
+      if (Object.keys(answers).length === 0) return;
+      this.busy = true;
+      button.disabled = true;
+      button.textContent = "Thinking\u2026";
+      const spinner = document.createElement("span");
+      spinner.className = "spinner";
+      button.prepend(spinner);
+      this.answers = { ...this.answers, ...answers };
+      try {
+        const roundResult = await this.cb.onNextRound(answers, this.askedSlots);
+        if (roundResult.questions.length > 0 && this.round < 1) {
+          this.round += 1;
+          this.askedSlots = Array.from(
+            /* @__PURE__ */ new Set([...this.askedSlots, ...roundResult.questions.map((q) => q.slot)])
+          );
+          this.busy = false;
+          this.renderClarify(roundResult.questions, true);
+          if (roundResult.fallback) {
+            this.cb.fallback = roundResult.fallback;
+          }
+          return;
+        }
+      } catch {
+      } finally {
+        this.busy = false;
+      }
+      this.renderSummary();
+    }
+    // ── stage: summary ───────────────────────────────────────────────────────
+    renderSummary() {
+      this.stage = "summary";
+      this.bodyEl.textContent = "";
+      this.footerEl.textContent = "";
+      const wrap = document.createElement("div");
+      wrap.className = "stage summary";
+      const head = document.createElement("div");
+      head.className = "summary__head";
+      const title = document.createElement("div");
+      title.className = "summary__title";
+      title.textContent = "What we understood";
+      const sub = document.createElement("div");
+      sub.className = "summary__sub";
+      sub.textContent = "These are the requirements that will be added to your message. You can edit the final prompt next.";
+      head.append(title, sub);
+      wrap.appendChild(head);
+      const list = document.createElement("div");
+      list.className = "summary__list";
+      const entries = this.summaryEntries();
+      if (entries.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "summary__row";
+        const value = document.createElement("div");
+        value.className = "summary__val summary__empty";
+        value.textContent = "No new requirements \u2014 your original wording will be sent as-is.";
+        empty.appendChild(value);
+        list.appendChild(empty);
+      } else {
+        for (const [key, value] of entries) {
+          const row = document.createElement("div");
+          row.className = "summary__row";
+          const keyEl = document.createElement("div");
+          keyEl.className = "summary__key";
+          keyEl.textContent = key;
+          const valEl = document.createElement("div");
+          valEl.className = "summary__val";
+          valEl.textContent = value;
+          row.append(keyEl, valEl);
+          list.appendChild(row);
+        }
+      }
+      wrap.appendChild(list);
+      wrap.appendChild(this.buildScoreFraming());
+      const meter = this.buildMeter(this.cb.result.completeness.score);
+      meter.style.marginBottom = "4px";
+      meter.dataset["role"] = "summary-meter";
+      wrap.appendChild(meter);
+      const missing = document.createElement("div");
+      missing.className = "summary__missing";
+      missing.dataset["role"] = "missing";
+      wrap.appendChild(missing);
+      this.missingNoteEl = missing;
+      this.bodyEl.appendChild(wrap);
+      void this.refreshScore();
+      const back = document.createElement("button");
+      back.className = "btn btn--ghost";
+      back.textContent = "Back";
+      back.addEventListener("click", () => this.renderClarify(this.cb.result.questions, this.round > 0));
+      const sendOriginal = document.createElement("button");
+      sendOriginal.className = "btn";
+      sendOriginal.textContent = "Send original";
+      sendOriginal.addEventListener("click", () => this.handleSendOriginal());
+      const build = document.createElement("button");
+      build.className = "btn btn--primary";
+      build.textContent = "Build prompt";
+      build.addEventListener("click", () => void this.handleBuild(build));
+      this.footerEl.append(back, spacerEl(), sendOriginal, build);
+    }
+    /**
+     * Three honest numbers on one line: what the user's wording scored, what the
+     * merged answers score now, and what answering everything still on screen
+     * would reach. The last one is explicitly labelled as a projection.
+     */
+    buildScoreFraming() {
+      const row = document.createElement("div");
+      row.className = "score-frame";
+      row.dataset["role"] = "score-frame";
+      const make = (text, role, extra = "") => {
+        const el = document.createElement("span");
+        el.className = `score-frame__item${extra}`;
+        el.dataset["role"] = role;
+        el.textContent = text;
+        return el;
+      };
+      row.append(
+        make(`Your wording ${this.cb.result.completeness.score}%`, "score-original"),
+        make("\u2192", "score-arrow", " score-frame__arrow"),
+        make("Answered \u2014", "score-now", " score-frame__item--now"),
+        make("", "score-projected", " score-frame__item--projected")
+      );
+      this.scoreFrameEl = row;
+      return row;
+    }
+    /** Fill / replace the answered + projected numbers once answers exist. */
+    async refreshScore() {
+      const row = this.scoreFrameEl;
+      const score = await this.requestScore();
+      if (!row || !row.isConnected) return;
+      const nowEl = row.querySelector('[data-role="score-now"]');
+      const projEl = row.querySelector('[data-role="score-projected"]');
+      if (!score) {
+        nowEl?.remove();
+        projEl?.remove();
+        return;
+      }
+      if (nowEl) nowEl.textContent = `Answered ${score.current.score}%`;
+      this.applyScoreToMeter(score);
+      if (projEl) {
+        const delta = score.projected - score.current.score;
+        projEl.textContent = delta >= 3 ? `Answering all ${score.projected}%` : "";
+        projEl.title = "Projection: what answering every question still on screen would reach.";
+      }
+      this.lastScore = score;
+      this.refreshMissingNote(score.missingLabels);
+    }
+    /** Push the live score into the summary meter and its facet row. */
+    applyScoreToMeter(score) {
+      const meter = this.bodyEl.querySelector('[data-role="summary-meter"]');
+      if (!meter) return;
+      const value = meter.querySelector(".meter__value");
+      const fill = meter.querySelector(".meter__fill");
+      if (value) value.textContent = `${score.current.score}%`;
+      if (fill) fill.style.width = `${score.current.score}%`;
+      const facets = score.current.facets;
+      const shown = [
+        ["Intent", facets.intentClarity.score],
+        ["Scope", facets.scope.score],
+        ["Function", facets.functional.score],
+        ["Output", facets.output.score]
+      ];
+      const row = meter.querySelector(".meter__facets");
+      if (!row) return;
+      const items = Array.from(row.querySelectorAll(".meter__facet"));
+      shown.forEach(([, facetScore], index) => {
+        const b = items[index]?.querySelector("b");
+        if (b) b.textContent = `${facetScore}`;
+      });
+    }
+    async requestScore() {
+      if (!this.cb.onScore) return null;
+      try {
+        return await this.cb.onScore(this.answers, this.questions.map((q) => q.slot));
+      } catch {
+        return null;
+      }
+    }
+    /** Slots the brief still does not cover — state them, never inflate the score. */
+    refreshMissingNote(labels) {
+      const box = this.missingNoteEl;
+      if (!box) return;
+      box.textContent = "";
+      if (labels.length === 0) {
+        const done = document.createElement("span");
+        done.textContent = "Everything material about this request is now specified.";
+        box.appendChild(done);
+        return;
+      }
+      const label = document.createElement("span");
+      label.className = "summary__missing-label";
+      label.textContent = "Still unspecified";
+      const list = document.createElement("span");
+      list.textContent = labels.slice(0, 5).join(" \xB7 ").toLowerCase();
+      box.append(label, list);
+    }
+    summaryEntries() {
+      return Object.entries(this.answers).map(([slot, value]) => {
+        const question = this.findQuestion(slot);
+        const label = question?.slot ?? slot;
+        const rendered = Array.isArray(value) ? value.join(", ") : value;
+        return [humanise(label), truncate(rendered, 120)];
+      }).filter(([, value]) => value.trim() !== "");
+    }
+    findQuestion(slot) {
+      return this.questions.find((q) => q.slot === slot)?.question ?? this.cb.result.questions.find((q) => q.slot === slot);
+    }
+    // ── stage: review ────────────────────────────────────────────────────────
+    async handleBuild(button) {
+      if (this.busy) return;
+      this.busy = true;
+      button.disabled = true;
+      button.textContent = "Composing\u2026";
+      const spinner = document.createElement("span");
+      spinner.className = "spinner";
+      button.prepend(spinner);
+      try {
+        const outcome = await this.cb.onRefine(this.answers);
+        this.outcome = outcome;
+        this.renderReview(outcome);
+      } catch (err) {
+        this.renderError("Second Thought could not compose the prompt.", err);
+      } finally {
+        this.busy = false;
+      }
+    }
+    renderReview(outcome) {
+      this.stage = "review";
+      this.bodyEl.textContent = "";
+      this.footerEl.textContent = "";
+      const wrap = document.createElement("div");
+      wrap.className = "stage review";
+      wrap.appendChild(this.buildMeter(outcome.completeness.score));
+      if (outcome.changes.length > 0) {
+        const list = document.createElement("ul");
+        list.className = "review__changes";
+        for (const change of outcome.changes.slice(0, 7)) {
+          const li = document.createElement("li");
+          li.textContent = truncate(change, 96);
+          list.appendChild(li);
+        }
+        wrap.appendChild(list);
+      }
+      const box = document.createElement("div");
+      box.className = "prompt-box";
+      const head = document.createElement("div");
+      head.className = "prompt-box__head";
+      const label = document.createElement("span");
+      label.className = "prompt-box__label";
+      label.textContent = "Final prompt \u2014 editable";
+      const copy = document.createElement("button");
+      copy.className = "btn btn--sm btn--ghost";
+      copy.textContent = "Copy";
+      copy.addEventListener("click", () => {
+        void navigator.clipboard.writeText(textarea.value).then(() => {
+          copy.textContent = "Copied";
+          window.setTimeout(() => {
+            copy.textContent = "Copy";
+          }, 1400);
+        }).catch(() => {
+          textarea.select();
+        });
+      });
+      head.append(label, copy);
+      const textarea = document.createElement("textarea");
+      textarea.value = outcome.prompt;
+      textarea.setAttribute("aria-label", "Final prompt (editable)");
+      textarea.spellcheck = false;
+      box.append(head, textarea);
+      wrap.appendChild(box);
+      wrap.appendChild(this.buildResidual(outcome.residualGaps));
+      this.bodyEl.appendChild(wrap);
+      const back = document.createElement("button");
+      back.className = "btn btn--ghost";
+      back.textContent = "Back";
+      back.addEventListener("click", () => {
+        this.outcome = null;
+        this.renderSummary();
+      });
+      const regen = document.createElement("button");
+      regen.className = "btn";
+      regen.textContent = "Regenerate";
+      regen.title = "Discard edits and rebuild from your answers";
+      regen.addEventListener("click", () => {
+        if (!this.outcome) return;
+        textarea.value = this.outcome.prompt;
+      });
+      const use = document.createElement("button");
+      use.className = "btn btn--primary";
+      use.textContent = "Use this prompt";
+      use.addEventListener("click", () => {
+        const final = textarea.value.trim() === "" ? outcome.prompt : textarea.value;
+        this.dispose();
+        this.cb.onUseRefined(final);
+      });
+      this.footerEl.append(back, regen, spacerEl(), use);
+    }
+    buildResidual(gaps) {
+      const box = document.createElement("div");
+      const dot = document.createElement("span");
+      dot.className = "residual__dot";
+      box.appendChild(dot);
+      const text = document.createElement("span");
+      if (gaps.length === 0) {
+        box.className = "residual residual--ok";
+        text.textContent = "Everything material is covered.";
+      } else {
+        box.className = "residual";
+        const names = gaps.slice(0, 3).map((gap) => gap.label.toLowerCase());
+        text.textContent = names.length === 1 ? `Still unspecified: ${names[0]}. You can add it above, or send as-is.` : `Still unspecified: ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}. You can add it above, or send as-is.`;
+      }
+      box.appendChild(text);
+      return box;
+    }
+    // ── stage: error ─────────────────────────────────────────────────────────
+    renderError(title, err) {
+      this.stage = "error";
+      this.bodyEl.textContent = "";
+      this.footerEl.textContent = "";
+      const wrap = document.createElement("div");
+      wrap.className = "stage";
+      const box = document.createElement("div");
+      box.className = "err-box";
+      const titleEl = document.createElement("div");
+      titleEl.className = "err-box__title";
+      titleEl.textContent = title;
+      const body = document.createElement("div");
+      body.className = "err-box__body";
+      body.textContent = err instanceof Error && err.message !== "" ? err.message : "Your original message is untouched and can still be sent.";
+      box.append(titleEl, body);
+      wrap.appendChild(box);
+      if (this.outcome) {
+        const pre = document.createElement("div");
+        pre.className = "prompt-box";
+        const textarea = document.createElement("textarea");
+        textarea.value = this.outcome.prompt;
+        textarea.setAttribute("aria-label", "Last generated prompt");
+        pre.appendChild(textarea);
+        wrap.appendChild(pre);
+      }
+      this.bodyEl.appendChild(wrap);
+      const retry = document.createElement("button");
+      retry.className = "btn";
+      retry.textContent = "Try again";
+      retry.addEventListener("click", () => {
+        if (this.outcome) this.renderReview(this.outcome);
+        else this.renderSummary();
+      });
+      const send = document.createElement("button");
+      send.className = "btn btn--primary";
+      send.textContent = "Send original";
+      send.addEventListener("click", () => this.handleSendOriginal());
+      this.footerEl.append(retry, spacerEl(), send);
+    }
+    // ── exits ────────────────────────────────────────────────────────────────
+    handleSendOriginal() {
+      this.dispose();
+      this.cb.onSendOriginal();
+    }
+    handleDismiss() {
+      this.dispose();
+      this.cb.onDismiss();
+    }
+  };
+  function spacerEl() {
+    const el = document.createElement("div");
+    el.className = "footer__spacer";
+    return el;
+  }
+  function truncate(text, max) {
+    const t = text.trim();
+    return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}\u2026`;
+  }
+  function humanise(slot) {
+    return slot.replace(/[_.]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+  }
+  function prefersDark() {
+    try {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    } catch {
+      return false;
+    }
+  }
+
+  // extension/preview/panel-demo.ts
+  var PROMPTS = [
+    { label: "Vague app", text: "Build me a really cool app." },
+    { label: "Expense tracker", text: "Build me an expense tracking app" },
+    { label: "Bakery site", text: "I need a website for my bakery" },
+    { label: "Cat image", text: "make me a picture of a cat" },
+    { label: "Fix my bug", text: "my python script throws a TypeError when I read the csv" },
+    { label: "Blog post", text: "write a blog post" },
+    { label: "Complete (passes through)", text: "Build a React dashboard that shows monthly revenue by region, Postgres via Prisma, auth with Google sign-in, deploy to Vercel. Must be responsive and mobile-first. For our sales team of 12 people. Deliver a complete runnable project with unit tests." }
+  ];
+  var TASK_LABELS2 = {
+    software: "Software development",
+    website: "Website development",
+    mobile: "Mobile app development",
+    coding: "Coding & debugging",
+    writing: "Writing & documentation",
+    research: "Research & analysis",
+    image: "Image generation",
+    business: "Business planning",
+    education: "Education & learning",
+    general: "General request"
+  };
+  var active = null;
+  function mount(promptText) {
+    active?.dispose();
+    active = null;
+    const result = analyzeRequest(promptText, { maxQuestions: 4 });
+    const status = document.getElementById("demo-status");
+    if (!result.isRefinable) {
+      status.textContent = `${TASK_LABELS2[result.taskType]} \xB7 completeness ${result.completeness.score}% \xB7 PASSED THROUGH \u2014 ${result.passthroughReason}`;
+      status.className = "demo-status demo-status--pass";
+      return;
+    }
+    status.textContent = `${TASK_LABELS2[result.taskType]} \xB7 completeness ${result.completeness.score}% \xB7 ${result.questions.length} questions \xB7 confidence ${result.decision.confidence}`;
+    status.className = "demo-status";
+    const panel = new ClarifyPanel({
+      result,
+      analysisId: result.id,
+      engine: "local",
+      onNextRound: async (answers, askedSlots) => {
+        const merged = {
+          ...result,
+          requirements: { ...result.requirements, fields: { ...result.requirements.fields, ...answers } }
+        };
+        return analyzeNext(merged, answers, { maxQuestions: 4, askedSlots });
+      },
+      onRefine: async (answers) => composeFrom(result, answers),
+      onScore: async (answers, slots) => scoreAnswers(result, answers, slots),
+      onUseRefined: (text) => {
+        const out = document.getElementById("demo-out");
+        out.textContent = text;
+        out.classList.add("is-visible");
+        panel.dispose();
+        active = null;
+      },
+      onSendOriginal: () => {
+        status.textContent = "You chose: send the original unchanged.";
+        status.className = "demo-status demo-status--pass";
+        active = null;
+      },
+      onDismiss: () => {
+        active = null;
+      }
+    });
+    active = panel;
+    panel.open();
+  }
+  function init() {
+    const list = document.getElementById("demo-list");
+    for (const prompt of PROMPTS) {
+      const button = document.createElement("button");
+      button.className = "demo-chip";
+      button.textContent = prompt.label;
+      button.addEventListener("click", () => {
+        for (const other of Array.from(list.querySelectorAll(".demo-chip"))) {
+          other.classList.remove("is-active");
+        }
+        button.classList.add("is-active");
+        document.getElementById("demo-out").classList.remove("is-visible");
+        mount(prompt.text);
+      });
+      list.appendChild(button);
+    }
+    const first = list.querySelector(".demo-chip");
+    first?.classList.add("is-active");
+    mount(PROMPTS[1].text);
+    document.getElementById("demo-reset")?.addEventListener("click", () => {
+      document.getElementById("demo-out").classList.remove("is-visible");
+      const activeChip = list.querySelector(".demo-chip.is-active");
+      const index = Array.from(list.children).indexOf(activeChip);
+      mount(PROMPTS[index >= 0 ? index : 1].text);
+    });
+  }
+  document.addEventListener("DOMContentLoaded", () => init());
+})();
